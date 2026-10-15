@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+
+# Swift and Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Generated artifacts and networking runtime
+build/
+dist/
+runtime/
+downloaded-binaries/
+*.log
+*.local.json
+
+# Credentials and signing materials
+.env
+.env.*
+!.env.example
+secrets/
+*.p12
+*.pfx
+*.key
+*.mobileprovision
+*.provisionprofile
