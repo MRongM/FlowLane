@@ -85,8 +85,14 @@ private func parentBelongsToOwner(_ pid: Int32, owner: UInt32) -> Bool {
 
 private func privateStage() throws -> URL {
     var name = Array("/private/tmp/app-proxy-runtime.XXXXXX".utf8CString)
-    guard let pointer = mkdtemp(&name) else { throw AppProxyError(localized: "helper.stage.create") }
-    let path = String(cString: pointer)
+    // mkdtemp returns a pointer into this array. Decode the path before the
+    // buffer borrow ends so optimized builds cannot release its storage early.
+    let path = try name.withUnsafeMutableBufferPointer { buffer -> String in
+        guard let base = buffer.baseAddress, let pointer = mkdtemp(base) else {
+            throw AppProxyError(localized: "helper.stage.create")
+        }
+        return String(cString: pointer)
+    }
     guard chmod(path, 0o700) == 0 else { rmdir(path); throw AppProxyError(localized: "helper.stage.permissions") }
     return URL(fileURLWithPath: path, isDirectory: true)
 }
