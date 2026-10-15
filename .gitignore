@@ -27,3 +27,7 @@ secrets/
 *.key
 *.mobileprovision
 *.provisionprofile
+
+# Diagnostic and test caches
+__pycache__/
+*.pyc
