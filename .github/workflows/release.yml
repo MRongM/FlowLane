@@ -137,14 +137,15 @@ jobs:
           python3 - <<'PY'
           import os, pathlib, signal, subprocess, tempfile, uuid
           app = (pathlib.Path('dist') / os.environ['EXPECTED_ARCH'] / 'FlowLane.app').resolve()
-          marker = '--flowlane-ci-' + uuid.uuid4().hex
+          marker = 'flowlane-ci-' + uuid.uuid4().hex
           with tempfile.TemporaryDirectory(prefix='flowlane-smoke-') as temporary:
               output = pathlib.Path(temporary) / 'stdout'
               error = pathlib.Path(temporary) / 'stderr'
+              screenshot = pathlib.Path(temporary) / (marker + '.png')
               try:
                   result = subprocess.run(
                       ['open', '-n', '-W', '-a', str(app), '--stdout', str(output),
-                       '--stderr', str(error), '--args', marker, '--smoke-test'],
+                       '--stderr', str(error), '--args', '--smoke-test', str(screenshot)],
                       text=True, capture_output=True, timeout=45)
                   text = output.read_text() if output.exists() else ''
                   print(text)
@@ -206,9 +207,14 @@ jobs:
           sha256sum --check SHA256SUMS
       - name: Create release with both architectures and checksums
         run: |
+          release_flags=()
+          version_without_metadata=${RELEASE_TAG%%+*}
+          if [[ "$version_without_metadata" == *-* ]]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
           gh release create "$RELEASE_TAG" \
             release-assets/FlowLane-macos-arm64.zip \
             release-assets/FlowLane-macos-x86_64.zip \
             release-assets/SHA256SUMS \
             --verify-tag --target "$RELEASE_COMMIT" --title "FlowLane $RELEASE_TAG" \
-            --notes-file docs/release-notes.md --generate-notes
+            --notes-file docs/release-notes.md --generate-notes "${release_flags[@]}"

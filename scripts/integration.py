@@ -18,12 +18,14 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import secrets
 import select
 import signal
 import shutil
 import socket
 import socketserver
+import stat
 import struct
 import subprocess
 import sys
@@ -404,6 +406,78 @@ def require(condition, label):
         raise RuntimeError(label)
 
 
+def helper_diagnostic_catalog():
+    """Only repository-owned English message keys can appear in diagnostics."""
+    catalog = {}
+    path = ROOT / "Sources/AppProxyKit/Resources/en.lproj/Runtime.strings"
+    entry = re.compile(r'\s*("(?:\\.|[^"\\])*")\s*=\s*("(?:\\.|[^"\\])*")\s*;\s*')
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = entry.fullmatch(line)
+            if match:
+                key, value = (json.loads(item) for item in match.groups())
+                if key.startswith(("helper.", "error.")):
+                    catalog[key] = value
+    except (OSError, ValueError):
+        return {}
+    return catalog
+
+
+def helper_status_key(session, allowed_keys):
+    """Read just the key from our private, bounded, non-symlink status file."""
+    directory = descriptor = None
+    maximum = 524288
+    try:
+        directory = os.open(session, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        info = os.fstat(directory)
+        if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+            return None
+        descriptor = os.open("status.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC,
+                             dir_fd=directory)
+        info = os.fstat(descriptor)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
+                or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > maximum):
+            return None
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = None
+            data = stream.read(maximum + 1)
+        if len(data) > maximum:
+            return None
+        status = json.loads(data)
+        content = status.get("messageContent") if isinstance(status, dict) else None
+        key = content.get("key") if isinstance(content, dict) else None
+        return key if isinstance(key, str) and key in allowed_keys else None
+    except (OSError, ValueError):
+        return None
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        if directory is not None:
+            os.close(directory)
+
+
+def helper_failure_diagnostic(result, session):
+    catalog = helper_diagnostic_catalog()
+    key = helper_status_key(session, catalog)
+    source = "status" if key else "unavailable"
+    if key is None:
+        # A failure before session opening has no status file. Match stderr only
+        # against an exact public catalog sentence with no substituted arguments.
+        try:
+            fixed = result.stderr.decode("utf-8").strip()
+            matches = [name for name, text in catalog.items()
+                       if not re.search(r"\{[0-9]+\}", text) and fixed == text]
+            if len(matches) == 1:
+                key, source = matches[0], "stderr_catalog"
+        except UnicodeDecodeError:
+            pass
+    # Never expose raw stdout/stderr, paths, message arguments, logs or secrets.
+    output_bytes = len(result.stdout) + len(result.stderr)
+    return ("bundled helper product compiler check failed "
+            f"(exit={result.returncode}; status={key or 'unavailable'}; "
+            f"source={source}; output_bytes={output_bytes})")
+
+
 def check_product_compiler(helper, fixtures):
     """Exercise bundled Swift compiler + pinned core CHECK, never helper run."""
     session_root = Path.home() / "Library/Application Support/App Proxy/Sessions"
@@ -429,7 +503,8 @@ def check_product_compiler(helper, fixtures):
         with os.fdopen(descriptor, "w") as stream:
             json.dump(request, stream)
         result = subprocess.run([str(helper), "check", "--session", str(session)], capture_output=True, timeout=20)
-        require(result.returncode == 0, "bundled helper product compiler check failed (captured output withheld)")
+        if result.returncode != 0:
+            raise RuntimeError(helper_failure_diagnostic(result, session))
         return {"passed": True, "command": "AppProxyHelper check --session <private-session>", "profiles": ["socks5", "http"], "rules": ["bundle_helpers", "exact_executable"], "tun_started": False}
     finally:
         shutil.rmtree(session)

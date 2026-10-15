@@ -65,14 +65,15 @@ jobs:
           python3 - <<'PY'
           import os, pathlib, signal, subprocess, tempfile, uuid
           app = (pathlib.Path('dist') / os.environ['EXPECTED_ARCH'] / 'FlowLane.app').resolve()
-          marker = '--flowlane-ci-' + uuid.uuid4().hex
+          marker = 'flowlane-ci-' + uuid.uuid4().hex
           with tempfile.TemporaryDirectory(prefix='flowlane-smoke-') as temporary:
               output = pathlib.Path(temporary) / 'stdout'
               error = pathlib.Path(temporary) / 'stderr'
+              screenshot = pathlib.Path(temporary) / (marker + '.png')
               try:
                   result = subprocess.run(
                       ['open', '-n', '-W', '-a', str(app), '--stdout', str(output),
-                       '--stderr', str(error), '--args', marker, '--smoke-test'],
+                       '--stderr', str(error), '--args', '--smoke-test', str(screenshot)],
                       text=True, capture_output=True, timeout=45)
                   text = output.read_text() if output.exists() else ''
                   print(text)
