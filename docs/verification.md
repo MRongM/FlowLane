@@ -4,6 +4,8 @@
 
 - `swift test`：68/68 通过，覆盖系统语言匹配、手动偏好持久化、全局/应用语言隔离、2068 条界面及运行消息的键/占位符、已有错误即时重渲染、旧状态兼容、特权请求字段不变，以及原有网络/凭据/生命周期边界。
 - Python 诊断回归：7/7 通过，覆盖 allowlist 状态键、符号链接拒绝、未知/占位符消息隐藏、超时和启动错误脱敏及失败清理。
+- [GitHub 原生 ARM/Intel CI](https://github.com/MRongM/app-proxy/actions/runs/38681481306)：两边均通过 68 项 Swift 测试、7 项 Python 诊断测试、Go 归属诊断、实际 loopback 转发、Release 打包/签名/内核摘要、捆绑 11 语言资源审计、产品 helper 配置校验和 LaunchServices 窗口冒烟。
+- 原生 Swift 6.1 CI 曾在优化后的 helper 临时目录权限检查失败；将 `mkdtemp` 返回指针到 String 的复制移入数组 buffer 的有效借用范围后，两种原生架构的打包校验均通过。较新本地 Swift 未复现旧问题，未把本地成功作为旧问题不存在的依据。
 - 11 种语言：en、zh-Hans、zh-Hant、ja、ko、fr、de、es、pt-BR、ru、ar。窗口和原生 Settings 共用一个偏好；部分 macOS 系统控件下次启动更新，系统授权窗口及原始内核诊断遵循系统/原始语言。
 - ARM 原生构建与 Intel 交叉构建通过架构、资源、签名及固定内核原始字节校验；Intel 原生运行结果以 GitHub Actions 原生 runner 为准。helper 使用分架构固定摘要。
 - 捆绑资源审计通过：离线 11 语言资源来自应用内部，未借助开发目录回退；原生 helper/内核的实际配置校验和本地分流通过，未启动 TUN。

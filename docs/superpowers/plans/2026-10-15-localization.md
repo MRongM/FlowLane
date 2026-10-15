@@ -9,4 +9,4 @@
 - [x] Migrate application-owned runtime/errors/helper status to keyed messages; preserve old Codable status fields and request restrictions. Add runtime tables for all eleven languages and protocol tests.
 - [x] Wire LanguageSettings into views, settings scene/tab, AppKit picker captions, menus and forms; add automatic system refresh and RTL with LTR technical fields. Verify no runtime/controller reset on language changes.
 - [x] Add tests and locale-aware smoke modes, audit all resources and bundled lookup location; build/sign/package and inspect representative language screenshots.
-- [ ] Independent review, update README/verification, commit/push existing feature branch and update draft PR. Replace local app while preserving user configuration and current language choice; do not activate or stop networking for language changes.
+- [x] Independent review, update README/verification, commit/push existing feature branch and update draft PR. Replace local app while preserving user configuration and current language choice; do not activate or stop networking for language changes.
