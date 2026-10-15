@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+      EXPECTED_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: tools/attribution/go.mod
+          cache-dependency-path: tools/attribution/go.sum
+      - name: Confirm native architecture and Xcode
+        run: |
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          xcrun swift --version
+      - name: Create disposable test keychain
+        run: |
+          keychain="$RUNNER_TEMP/FlowLane-tests.keychain-db"
+          security create-keychain -p '' "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p '' "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -d user -s "$keychain"
+      - name: Native tests and loopback integration
+        run: scripts/test.sh
+      - name: Build native application
+        run: scripts/build.sh --arch "$EXPECTED_ARCH"
+      - name: Audit packaged resources and all eleven localization catalogs
+        run: '"dist/$EXPECTED_ARCH/FlowLane.app/Contents/MacOS/AppProxy" --localization-audit'
+      - name: Check packaged core and actual Swift product compiler without TUN
+        run: |
+          python3 scripts/integration.py \
+            --core "dist/$EXPECTED_ARCH/FlowLane.app/Contents/Resources/sing-box" \
+            --helper "dist/$EXPECTED_ARCH/FlowLane.app/Contents/MacOS/AppProxyHelper"
+      - name: Smoke test packaged application without network activation
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, signal, subprocess, tempfile, uuid
+          app = (pathlib.Path('dist') / os.environ['EXPECTED_ARCH'] / 'FlowLane.app').resolve()
+          marker = 'flowlane-ci-' + uuid.uuid4().hex
+          with tempfile.TemporaryDirectory(prefix='flowlane-smoke-') as temporary:
+              output = pathlib.Path(temporary) / 'stdout'
+              error = pathlib.Path(temporary) / 'stderr'
+              screenshot = pathlib.Path(temporary) / (marker + '.png')
+              try:
+                  result = subprocess.run(
+                      ['open', '-n', '-W', '-a', str(app), '--stdout', str(output),
+                       '--stderr', str(error), '--args', '--smoke-test', str(screenshot)],
+                      text=True, capture_output=True, timeout=45)
+                  text = output.read_text() if output.exists() else ''
+                  print(text)
+                  if result.returncode or 'UI_SMOKE_PASS' not in text:
+                      raise SystemExit('Packaged application smoke test failed')
+              finally:
+                  # open launches outside its own process tree. Stop only this
+                  # uniquely marked probe if a failed test left it running.
+                  processes = subprocess.check_output(['ps', '-axo', 'pid=,command='], text=True)
+                  for row in processes.splitlines():
+                      if marker in row and str(app / 'Contents/MacOS/AppProxy') in row:
+                          try:
+                              os.kill(int(row.split(None, 1)[0]), signal.SIGTERM)
+                          except ProcessLookupError:
+                              pass
+          PY
+      - name: Upload native application
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: FlowLane-macos-${{ matrix.arch }}
+          path: dist/FlowLane-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Delete disposable test keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/FlowLane-tests.keychain-db"

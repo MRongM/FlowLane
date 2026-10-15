@@ -27,3 +27,10 @@ secrets/
 *.key
 *.mobileprovision
 *.provisionprofile
+
+# Diagnostic and test caches
+__pycache__/
+*.pyc
+
+# User-pasted screenshots (preserve locally)
+/tmp/cache/
