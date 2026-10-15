@@ -1,9 +1,11 @@
 """Failure diagnostics preserve the packaged check and exclude private payloads."""
 
+from contextlib import nullcontext
 import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import textwrap
 from types import SimpleNamespace
@@ -14,7 +16,7 @@ import integration
 
 
 class PackagedHelperDiagnosticsTests(unittest.TestCase):
-    def invoke_failing_helper(self, *, status=None, stderr="", symlink_status=False):
+    def invoke_failing_helper(self, *, status=None, stderr="", symlink_status=False, launch_error=None):
         canary = "private-fixture-password-never-log"
         with tempfile.TemporaryDirectory(prefix="helper-diagnostic-test-") as temporary:
             root = Path(temporary)
@@ -44,7 +46,8 @@ class PackagedHelperDiagnosticsTests(unittest.TestCase):
             helper.chmod(0o700)
             fixtures = SimpleNamespace(username="private-fixture-user", password=canary,
                                        socks_port=12345, connect_port=12346)
-            with patch.object(integration.Path, "home", return_value=home):
+            launch = patch.object(integration.subprocess, "run", side_effect=launch_error) if launch_error else nullcontext()
+            with patch.object(integration.Path, "home", return_value=home), launch:
                 with self.assertRaises(RuntimeError) as failure:
                     integration.check_product_compiler(helper, fixtures)
             # The request and synthetic credentials must be removed on failure.
@@ -55,7 +58,21 @@ class PackagedHelperDiagnosticsTests(unittest.TestCase):
             self.assertNotIn("private-fixture-user", diagnostic)
             self.assertNotIn("private-status-argument", diagnostic)
             self.assertNotIn("private-status-message", diagnostic)
+            self.assertNotIn("private-session-path", diagnostic)
+            self.assertNotIn("private-helper-path", diagnostic)
             return diagnostic
+
+    def test_timeout_with_private_command_and_output_is_withheld(self):
+        failure = subprocess.TimeoutExpired(
+            ["/private-helper-path", "check", "--session", "/private-session-path"], 20,
+            output=b"private-fixture-password-never-log", stderr=b"private-fixture-user")
+        diagnostic = self.invoke_failing_helper(launch_error=failure)
+        self.assertIn("timed out", diagnostic)
+
+    def test_launch_error_with_private_path_is_withheld(self):
+        failure = OSError(2, "cannot launch private-session-path", "/private-helper-path")
+        diagnostic = self.invoke_failing_helper(launch_error=failure)
+        self.assertIn("could not launch", diagnostic)
 
     def test_allowlisted_structured_status_reports_key_and_exit_only(self):
         diagnostic = self.invoke_failing_helper(status={

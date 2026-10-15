@@ -502,7 +502,12 @@ def check_product_compiler(helper, fixtures):
         descriptor = os.open(session / "request.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "w") as stream:
             json.dump(request, stream)
-        result = subprocess.run([str(helper), "check", "--session", str(session)], capture_output=True, timeout=20)
+        try:
+            result = subprocess.run([str(helper), "check", "--session", str(session)], capture_output=True, timeout=20)
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("bundled helper product compiler check timed out (captured output withheld)") from None
+        except OSError:
+            raise RuntimeError("bundled helper product compiler check could not launch (details withheld)") from None
         if result.returncode != 0:
             raise RuntimeError(helper_failure_diagnostic(result, session))
         return {"passed": True, "command": "AppProxyHelper check --session <private-session>", "profiles": ["socks5", "http"], "rules": ["bundle_helpers", "exact_executable"], "tun_started": False}
