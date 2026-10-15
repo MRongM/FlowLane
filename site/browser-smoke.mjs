@@ -86,6 +86,12 @@ try {
     assert.ok(Date.now() < loadedDeadline, "Site translations did not load");
     await delay(50);
   }
+  const imageState = await evaluate(`(async () => {
+    for (const image of document.images) image.loading = "eager";
+    await Promise.all([...document.images].map(image => image.decode()));
+    const screenshot = document.querySelector(".app-preview img");
+    return {loadedImages: document.images.length, screenshotLoaded: Boolean(screenshot && screenshot.naturalWidth > 0)};
+  })()`);
   const checks = [];
   for (const [width, height] of [[1440, 1000], [390, 844]]) {
     await command("Emulation.setDeviceMetricsOverride", {width, height, deviceScaleFactor: 1, mobile: width < 500});
@@ -97,6 +103,7 @@ try {
         return {lang: document.documentElement.lang, dir: document.documentElement.dir,
           title: document.querySelector("h1").textContent,
           saved: localStorage.getItem("flowlane-language"), query: new URL(location.href).searchParams.get("lang"),
+          screenshotAlt: document.querySelector(".app-preview img")?.alt,
           overflow: document.documentElement.scrollWidth > innerWidth + 1,
           brokenImages: [...document.images].some(image => image.complete && image.naturalWidth === 0)};
       })()`);
@@ -105,6 +112,7 @@ try {
       assert.equal(state.title, catalogs[language].heroTitle);
       assert.equal(state.saved, language);
       assert.equal(state.query, language);
+      if (imageState.screenshotLoaded) assert.equal(state.screenshotAlt, catalogs[language].screenshotCaption);
       assert.ok(!state.overflow, `Horizontal overflow: ${language} at ${width}px`);
       assert.ok(!state.brokenImages, `Broken image: ${language}`);
       checks.push(`${language}@${width}`);
@@ -116,7 +124,7 @@ try {
     }
   }
   assert.deepEqual(externalRequests, [], "The site loaded an external dependency");
-  console.log(JSON.stringify({passed: true, languageAndViewportChecks: checks.length, checks, rtlVerified: true, selectorPersistenceVerified: true, horizontalOverflow: false, externalSiteDependencies: false}, null, 2));
+  console.log(JSON.stringify({passed: true, languageAndViewportChecks: checks.length, checks, rtlVerified: true, selectorPersistenceVerified: true, horizontalOverflow: false, externalSiteDependencies: false, ...imageState}, null, 2));
 } finally {
   socket?.close();
   for (const waiting of pending.values()) clearTimeout(waiting.timeout);
@@ -126,5 +134,5 @@ try {
     if (browser.exitCode === null) { browser.kill("SIGKILL"); await new Promise(resolve => browser.once("exit", resolve)); }
   }
   await new Promise(resolve => server.close(resolve));
-  await rm(profile, {recursive: true, force: true});
+  await rm(profile, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
 }

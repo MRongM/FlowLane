@@ -9,9 +9,10 @@ const keys = [...markup.matchAll(/data-i18n="([^"]+)"/g)].map(match => match[1])
 
 function fakeDocument() {
   const nodes = keys.map(key => ({dataset: {i18n: key}, textContent: ""}));
+  const image = {dataset: {i18nAlt: "screenshotCaption"}, attributes: {}, setAttribute(name, value) { this.attributes[name] = value; }};
   const select = {value: ""};
-  return {nodes, select, documentElement: {}, title: "",
-    querySelectorAll: selector => selector === "[data-i18n]" ? nodes : [],
+  return {nodes, select, image, documentElement: {}, title: "",
+    querySelectorAll: selector => selector === "[data-i18n]" ? nodes : selector === "[data-i18n-alt]" ? [image] : [],
     querySelector: selector => selector === "#language" ? select : null};
 }
 
@@ -34,6 +35,7 @@ test("switching every language updates text, HTML language, direction and select
     assert.equal(document.documentElement.lang, language);
     assert.equal(document.documentElement.dir, language === "ar" ? "rtl" : "ltr");
     assert.equal(document.select.value, language);
+    assert.equal(document.image.attributes.alt, catalogs[language].screenshotCaption);
     assert.equal(document.nodes.find(node => node.dataset.i18n === "heroTitle").textContent, catalogs[language].heroTitle);
     assert.match(document.title, /FlowLane/);
   }
@@ -57,7 +59,10 @@ test("missing individual translations use English text safely", () => {
 test("downloads target both architecture assets and no third-party site assets are loaded", () => {
   assert.ok(markup.includes("releases/latest/download/FlowLane-macos-arm64.zip"));
   assert.ok(markup.includes("releases/latest/download/FlowLane-macos-x86_64.zip"));
-  assert.equal([...markup.matchAll(/(?:src|href)="(https?:[^\"]+)"/g)].filter(match => !/https:\/\/(?:github\.com|MRongM\.github\.io)\//.test(match[1])).length, 0);
+  assert.equal([...markup.matchAll(/(?:src|href)="(https?:[^\"]+)"/g)].filter(match => !/https:\/\/(?:github\.com|MRongM\.github\.io|gh\.328064\.xyz)\//i.test(match[1])).length, 0);
+  assert.ok(markup.includes('<link rel="canonical" href="https://gh.328064.xyz/app-proxy/">'));
+  assert.ok(markup.includes('<meta property="og:url" content="https://gh.328064.xyz/app-proxy/">'));
+  assert.ok(markup.includes('<meta property="og:image" content="https://gh.328064.xyz/app-proxy/assets/flowlane.png">'));
   assert.ok(!markup.includes("<!-- UI_SCREENSHOT -->"));
   for (const key of ["scopeHelpers", "scopeUdp", "scopeDns", "scopeIpv6", "scopeLifecycle", "scopeLicense"]) {
     assert.ok(markup.includes(catalogs.en[key].replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")), `static English ${key}`);

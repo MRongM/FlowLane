@@ -39,6 +39,10 @@ export function applyLanguage(requested, catalogs, document) {
     const key = element.dataset.i18nAria;
     element.setAttribute("aria-label", catalog[key] ?? catalogs.en[key]);
   }
+  for (const element of document.querySelectorAll("[data-i18n-alt]")) {
+    const key = element.dataset.i18nAlt;
+    element.setAttribute("alt", catalog[key] ?? catalogs.en[key]);
+  }
   document.documentElement.lang = language;
   document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
   document.title = `${catalog.brand || "FlowLane"} — ${(catalog.heroTitle || catalogs.en.heroTitle).replaceAll("\n", " ")}`;

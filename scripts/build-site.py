@@ -80,12 +80,14 @@ def translated_html(source, english):
         return match[1] + html.escape(english[key], quote=False) + match[4]
 
     source = re.sub(pattern, replace, source, flags=re.DOTALL)
-    for match in list(re.finditer(r'<[a-z][^>]*\bdata-i18n-aria="([^"]+)"[^>]*>', source)):
-        tag = match[0]
-        key = match[1]
-        require(key in english, f"Missing accessible English text: {key}")
-        changed = re.sub(r'aria-label="[^"]*"', 'aria-label="' + html.escape(english[key], quote=True) + '"', tag)
-        source = source.replace(tag, changed)
+    for suffix, attribute in (("aria", "aria-label"), ("alt", "alt")):
+        pattern = rf'<[a-z][^>]*\bdata-i18n-{suffix}="([^"]+)"[^>]*>'
+        for match in list(re.finditer(pattern, source)):
+            tag = match[0]
+            key = match[1]
+            require(key in english, f"Missing accessible English text: {key}")
+            changed = re.sub(rf'(?<![\w-]){attribute}="[^"]*"', attribute + '="' + html.escape(english[key], quote=True) + '"', tag)
+            source = source.replace(tag, changed)
     return source
 
 
@@ -106,7 +108,7 @@ class PageReferences(HTMLParser):
         for key in ("href", "src"):
             if key in attributes:
                 self.references.append(attributes[key])
-        for key in ("data-i18n", "data-i18n-aria"):
+        for key in ("data-i18n", "data-i18n-aria", "data-i18n-alt"):
             if key in attributes:
                 self.translations.add(attributes[key])
         if tag == "option":
@@ -126,7 +128,7 @@ def validate(directory):
     for reference in parsed.references:
         parts = urlsplit(reference)
         if parts.scheme or parts.netloc:
-            require(parts.scheme == "https" and parts.netloc in {"github.com", "MRongM.github.io"}, "Unexpected external dependency or unsafe link")
+            require(parts.scheme == "https" and parts.netloc.lower() in {"github.com", "mrongm.github.io", "gh.328064.xyz"}, "Unexpected external dependency or unsafe link")
             continue
         if parts.path:
             require(not parts.path.startswith("/"), "Root-relative assets break project Pages URLs")
@@ -169,7 +171,7 @@ def build():
         figure = ""
         if screenshot.exists():
             width, height = copy_png(screenshot, stage / "assets/flowlane-ui-en.png")
-            figure = f'<section class="app-preview wrap"><figure><img src="./assets/flowlane-ui-en.png" alt="FlowLane native macOS app, English interface" loading="lazy" width="{width}" height="{height}"><figcaption data-i18n="screenshotCaption"></figcaption></figure></section>'
+            figure = f'<section class="app-preview wrap"><figure><img src="./assets/flowlane-ui-en.png" alt="FlowLane native macOS app, English interface" data-i18n-alt="screenshotCaption" loading="lazy" width="{width}" height="{height}"><figcaption data-i18n="screenshotCaption"></figcaption></figure></section>'
         require(markup.count("<!-- UI_SCREENSHOT -->") == 1, "Expected exactly one screenshot insertion point")
         markup = translated_html(markup.replace("<!-- UI_SCREENSHOT -->", figure), values["en"])
         (stage / "index.html").write_text(markup, encoding="utf-8")

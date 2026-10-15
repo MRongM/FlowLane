@@ -2,7 +2,7 @@
 
 **A native macOS app that chooses a proxy connection for each application.**
 
-[简体中文](README.zh-CN.md) · [Website](https://mrongm.github.io/app-proxy/) · [Downloads](https://github.com/MRongM/app-proxy/releases/latest) · [Verification](docs/verification.md)
+[简体中文](README.zh-CN.md) · [Website](https://gh.328064.xyz/app-proxy/) · [Downloads](https://github.com/MRongM/app-proxy/releases/latest) · [Verification](docs/verification.md)
 
 ![CI](https://github.com/MRongM/app-proxy/actions/workflows/ci.yml/badge.svg)
 
@@ -91,6 +91,6 @@ The helper accepts fixed operations and typed models, verifies owner/parent/file
 
 - [CI](.github/workflows/ci.yml) tests/builds both native architectures.
 - [Release](.github/workflows/release.yml) validates a `v*` tag against the app version and publishes only after both native builds pass, with two ZIPs and checksums. Manual dispatch defaults to build-only.
-- [Pages](.github/workflows/pages.yml) builds and publishes the [11-language introduction site](https://mrongm.github.io/app-proxy/). Local preview: `python3 scripts/build-site.py` then serve `build/site`.
+- [Pages](.github/workflows/pages.yml) builds and publishes the [11-language introduction site](https://gh.328064.xyz/app-proxy/). Local preview: `python3 scripts/build-site.py` then serve `build/site`.
 
 FlowLane is GPL-3.0-or-later: [LICENSE](LICENSE). Pinned **sing-box 1.14.3**, architecture hashes, upstream license and matching source links are in [ThirdParty/sing-box](ThirdParty/sing-box/SOURCE.md). Downloaded executables, runtime credentials/configurations and built applications stay out of Git. [Brand assets and image-generation prompt](docs/branding.md).

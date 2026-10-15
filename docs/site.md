@@ -1,7 +1,8 @@
 # FlowLane product site
 
 The static product introduction is prepared for
-`https://MRongM.github.io/app-proxy/`. Preparing these files does not publish the
+`https://gh.328064.xyz/app-proxy/`, the HTTPS address reported by Pages for the
+account's existing custom domain. Preparing these files does not publish the
 site, create a Pages project, change repository visibility, or run network routing.
 
 Build and check from the repository root:
@@ -36,7 +37,9 @@ HTML contains the complete English content and working download/source links.
 - A real, sanitized English app screenshot may be supplied at
   `site/assets/flowlane-ui-en.png`. The build includes its figure and translated
   English-interface caption only when that exact file exists. It checks the PNG
-  signature and dimensions. Without it, the section is omitted. The hero is
+  signature and dimensions. The supplied real screenshot is now included, with
+  its alt text and caption translated by the language selector. Without it, the
+  section is omitted. The hero is
   explicitly labeled as a routing concept, rather than presented as an app
   screenshot.
 - The download links use the real repository's latest release assets:
@@ -80,7 +83,8 @@ site directory.
 
 Verified locally on 2026-10-15: the Python build/integrity check passed, all five
 Node tests passed, and Chrome passed all 22 language/viewport combinations with
-zero horizontal overflow, broken images, or external page dependencies. The
+the real screenshot loaded, translated alt text, and zero horizontal overflow,
+broken images, or external page dependencies. The
 desktop English and mobile Arabic previews were visually inspected. These checks
 cover the local website, not GitHub hosting, releases, or TUN networking.
 
@@ -103,6 +107,6 @@ repositories on 2026-10-15 and pinned to commits:
 | [upload-pages-artifact](https://github.com/actions/upload-pages-artifact) | v4 | `7b1f4a764d45c48632c6b24a0339c27f5614fb0b` |
 | [deploy-pages](https://github.com/actions/deploy-pages) | v4 | `d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e` |
 
-No deployment or repository visibility change was performed while preparing and
-testing this site. Only a successful future Pages workflow establishes its public
-URL and deployment status.
+Local builds and tests do not change repository visibility or publish a site.
+GitHub Pages workflow results establish the deployed revision and hosting status;
+the local verification above does not assert that the latest source is deployed.

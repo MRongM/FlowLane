@@ -2,7 +2,7 @@
 
 **为每个 macOS 应用选择自己的代理连接。**
 
-[English](README.md) · [介绍页面](https://mrongm.github.io/app-proxy/) · [下载版本](https://github.com/MRongM/app-proxy/releases/latest) · [验证记录](docs/verification.md)
+[English](README.md) · [介绍页面](https://gh.328064.xyz/app-proxy/) · [下载版本](https://github.com/MRongM/app-proxy/releases/latest) · [验证记录](docs/verification.md)
 
 ![CI](https://github.com/MRongM/app-proxy/actions/workflows/ci.yml/badge.svg)
 
@@ -86,6 +86,6 @@ helper 校验用户、父进程、文件权限及固定内核摘要，拒绝链�
 
 - [CI](.github/workflows/ci.yml)：原生 ARM / Intel 测试、打包及本地化资源审计。
 - [Release](.github/workflows/release.yml)：校验标签与应用版本，两个原生构建通过后同时发布 ZIP 和 SHA256SUMS；手动触发默认只构建。
-- [Pages](.github/workflows/pages.yml)：发布 [11 语言介绍页面](https://mrongm.github.io/app-proxy/)。本地执行 `python3 scripts/build-site.py` 后可预览 `build/site`。
+- [Pages](.github/workflows/pages.yml)：发布 [11 语言介绍页面](https://gh.328064.xyz/app-proxy/)。本地执行 `python3 scripts/build-site.py` 后可预览 `build/site`。
 
 源码采用 [GPL-3.0-or-later](LICENSE)。固定 **sing-box 1.14.3** 的 ARM / Intel 摘要、许可与匹配源码见 [ThirdParty/sing-box](ThirdParty/sing-box/SOURCE.md)。下载内核、含凭据运行配置和构建产物均不进入 Git。[Logo 与生成提示词](docs/branding.md)。
