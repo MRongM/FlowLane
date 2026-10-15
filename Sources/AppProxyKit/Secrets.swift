@@ -12,21 +12,21 @@ public final class KeychainSecrets {
         var result: CFTypeRef?
         let status = SecItemCopyMatching(q as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8) else { throw AppProxyError("Keychain 读取失败（\(status)）") }
+        guard status == errSecSuccess, let data = result as? Data, let value = String(data: data, encoding: .utf8) else { throw AppProxyError(localized: "error.keychain.read", arguments: [String(status)]) }
         return value
     }
     public func save(_ value: String, for id: UUID) throws {
         let q = query(id); let data = Data(value.utf8)
         let update = SecItemUpdate(q as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if update == errSecSuccess { return }
-        guard update == errSecItemNotFound else { throw AppProxyError("Keychain 更新失败（\(update)）") }
+        guard update == errSecItemNotFound else { throw AppProxyError(localized: "error.keychain.update", arguments: [String(update)]) }
         var add = q; add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
-        guard status == errSecSuccess else { throw AppProxyError("Keychain 保存失败（\(status)）") }
+        guard status == errSecSuccess else { throw AppProxyError(localized: "error.keychain.save", arguments: [String(status)]) }
     }
     public func delete(_ id: UUID) throws {
         let status = SecItemDelete(query(id) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else { throw AppProxyError("Keychain 删除失败（\(status)）") }
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw AppProxyError(localized: "error.keychain.delete", arguments: [String(status)]) }
     }
 }

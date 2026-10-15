@@ -3,11 +3,17 @@ import AppProxyKit
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject private var language: LanguageSettings
+    private func t(_ key: String, _ arguments: String...) -> String { language.text(key, arguments: arguments) }
     @ObservedObject var store: AppStore
     @ObservedObject var runtime: RuntimeController
-    @State private var tab = 0
+    @State private var tab: Int
     @State private var editor: ProxyProfile?
     @State private var showNewProxy = false
+
+    init(store: AppStore, runtime: RuntimeController, initialTab: Int = 0) {
+        self.store = store; self.runtime = runtime; _tab = State(initialValue: initialTab)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,52 +24,53 @@ struct ContentView: View {
                     Image(systemName: "arrow.triangle.branch").font(.largeTitle).foregroundStyle(.blue)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("流径 FlowLane").font(.title2.bold())
-                    Text("为每个应用选择连接方式").foregroundStyle(.secondary)
+                    Text(t("brand.name")).font(.title2.bold())
+                    Text(t("brand.tagline")).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Label(runtime.state.phase.title, systemImage: runtime.state.phase == .running ? "circle.fill" : "circle")
+                Label(t("phase." + runtime.state.phase.rawValue), systemImage: runtime.state.phase == .running ? "circle.fill" : "circle")
                     .foregroundStyle(runtime.state.phase == .running ? .green : runtime.state.phase == .failed ? .red : .secondary)
                 if runtime.active {
-                    Button("停止网络接管", role: .destructive) { runtime.stop() }.disabled(runtime.state.phase == .stopping)
+                    Button(t("network.stop"), role: .destructive) { runtime.stop() }.disabled(runtime.state.phase == .stopping)
                 } else {
-                    Button("启动网络接管") { runtime.start(store: store) }.buttonStyle(.borderedProminent)
+                    Button(t("network.start")) { runtime.start(store: store) }.buttonStyle(.borderedProminent)
                         .disabled(!store.loaded || !store.configuration.rules.contains(where: \.enabled))
                 }
             }.padding(22)
             Divider()
             HStack {
-                Text(runtime.state.message).foregroundStyle(runtime.state.phase == .failed ? .red : .secondary).textSelection(.enabled)
+                Text(language.render(runtime.state.content)).foregroundStyle(runtime.state.phase == .failed ? .red : .secondary).textSelection(.enabled)
                 Spacer()
-                Text("sing-box 1.14.3 · TCP").font(.caption).foregroundStyle(.secondary)
+                Text("sing-box 1.14.3 · TCP").font(.caption).foregroundStyle(.secondary).environment(\.layoutDirection, .leftToRight)
             }.padding(.horizontal, 22).padding(.vertical, 12)
             TabView(selection: $tab) {
-                rulesView.tabItem { Label("应用规则", systemImage: "app.badge.checkmark") }.tag(0)
-                profilesView.tabItem { Label("代理配置", systemImage: "server.rack") }.tag(1)
-                logsView.tabItem { Label("连接与运行日志", systemImage: "text.alignleft") }.tag(2)
-                limitationsView.tabItem { Label("使用说明", systemImage: "info.circle") }.tag(3)
+                rulesView.tabItem { Label(t("nav.apps"), systemImage: "app.badge.checkmark") }.tag(0)
+                profilesView.tabItem { Label(t("nav.proxies"), systemImage: "server.rack") }.tag(1)
+                logsView.tabItem { Label(t("nav.logs"), systemImage: "text.alignleft") }.tag(2)
+                limitationsView.tabItem { Label(t("nav.help"), systemImage: "info.circle") }.tag(3)
+                LanguageSettingsView().tabItem { Label(t("nav.settings"), systemImage: "gearshape") }.tag(4)
             }.padding([.horizontal, .bottom], 18)
         }
         .sheet(isPresented: $showNewProxy) { ProfileEditor(store: store, profile: ProxyProfile(name: "", kind: .socks5, host: "", port: 1080)) }
         .sheet(item: $editor) { ProfileEditor(store: store, profile: $0) }
-        .alert("操作未完成", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
-            Button("好") { store.error = nil }
-        } message: { Text(store.error ?? "") }
+        .alert(t("alert.failed"), isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+            Button(t("common.ok")) { store.error = nil }
+        } message: { Text(store.error.map(language.render) ?? "") }
     }
 
     private var rulesView: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("应用规则").font(.title3.bold())
-                    Text("从上到下匹配；未匹配或未知进程默认直连。").foregroundStyle(.secondary)
+                    Text(t("nav.apps")).font(.title3.bold())
+                    Text(t("apps.description")).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button { store.selectApplication() } label: { Label("添加应用", systemImage: "plus") }
+                Button { store.selectApplication(language: language.language) } label: { Label(t("apps.add"), systemImage: "plus") }
                     .disabled(runtime.active || !store.loaded)
             }
             if store.configuration.rules.isEmpty {
-                ContentUnavailableView("添加需要代理的应用", systemImage: "app.dashed", description: Text("可先选择 .app，稍后分配代理。未分配代理的规则保持停用。"))
+                ContentUnavailableView(t("apps.empty_title"), systemImage: "app.dashed", description: Text(t("apps.empty_body")))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
@@ -74,34 +81,34 @@ struct ContentView: View {
                 }
             }
             Spacer(minLength: 0)
-            Label("启动将请求管理员授权；TUN 接收流量后再分流。", systemImage: "lock.shield").font(.callout).foregroundStyle(.secondary)
+            Label(t("apps.authorization"), systemImage: "lock.shield").font(.callout).foregroundStyle(.secondary)
         }.padding(18)
     }
     private func ruleRow(_ rule: ApplicationRule, index: Int) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text("\(index + 1)").monospacedDigit().foregroundStyle(.secondary).frame(width: 22)
+            Text(index + 1, format: .number.grouping(.never)).monospacedDigit().foregroundStyle(.secondary).frame(width: 22)
             Image(nsImage: NSWorkspace.shared.icon(forFile: rule.appPath)).resizable().frame(width: 36, height: 36)
             VStack(alignment: .leading, spacing: 7) {
-                Text(rule.name).font(.headline)
-                Text(rule.appPath).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                Text("主进程：" + rule.executablePath).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(rule.executablePath)
-                if rule.proxyID == nil { Text("未分配代理，暂不启用").font(.caption).foregroundStyle(.secondary) }
-                Toggle("包含应用包内的 Helper / XPC", isOn: ruleBinding(rule, \.includeHelpers)).font(.caption)
+                Text(verbatim: rule.name).font(.headline)
+                Text(verbatim: rule.appPath).environment(\.layoutDirection, .leftToRight).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(t("apps.main_process", "\u{2066}" + rule.executablePath + "\u{2069}")).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(rule.executablePath)
+                if rule.proxyID == nil { Text(t("apps.unassigned_hint")).font(.caption).foregroundStyle(.secondary) }
+                Toggle(t("apps.include_helpers"), isOn: ruleBinding(rule, \.includeHelpers)).font(.caption)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 8) {
-                Picker("代理", selection: Binding<UUID?>(get: {
+                Picker(t("apps.proxy"), selection: Binding<UUID?>(get: {
                     store.configuration.rules.first(where: { $0.id == rule.id })?.proxyID
                 }, set: { store.assignProxy($0, to: rule.id) })) {
-                    Text("未分配代理").tag(Optional<UUID>.none)
-                    ForEach(store.configuration.proxies) { p in Text(p.name).tag(Optional(p.id)) }
+                    Text(t("apps.unassigned")).tag(Optional<UUID>.none)
+                    ForEach(store.configuration.proxies) { p in Text(verbatim: p.name).tag(Optional(p.id)) }
                 }.frame(width: 220)
                 HStack {
-                    Toggle("启用", isOn: ruleBinding(rule, \.enabled)).toggleStyle(.switch).controlSize(.small)
+                    Toggle(t("apps.enabled"), isOn: ruleBinding(rule, \.enabled)).toggleStyle(.switch).controlSize(.small)
                         .disabled(rule.proxyID == nil)
-                    Button { move(index, by: -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0)
-                    Button { move(index, by: 1) } label: { Image(systemName: "arrow.down") }.disabled(index == store.configuration.rules.count - 1)
-                    Button(role: .destructive) { store.change { $0.rules.removeAll { $0.id == rule.id } } } label: { Image(systemName: "trash") }
+                    Button { move(index, by: -1) } label: { Image(systemName: "arrow.up") }.help(t("apps.move_up")).accessibilityLabel(t("apps.move_up")).disabled(index == 0)
+                    Button { move(index, by: 1) } label: { Image(systemName: "arrow.down") }.help(t("apps.move_down")).accessibilityLabel(t("apps.move_down")).disabled(index == store.configuration.rules.count - 1)
+                    Button(role: .destructive) { store.change { $0.rules.removeAll { $0.id == rule.id } } } label: { Image(systemName: "trash") }.help(t("common.delete")).accessibilityLabel(t("common.delete"))
                 }
             }
         }.padding(14).background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10)).disabled(runtime.active)
@@ -116,86 +123,93 @@ struct ContentView: View {
     private var profilesView: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("代理配置").font(.title3.bold()); Spacer()
-                Button { showNewProxy = true } label: { Label("添加代理", systemImage: "plus") }.disabled(runtime.active || !store.loaded)
+                Text(t("nav.proxies")).font(.title3.bold()); Spacer()
+                Button { showNewProxy = true } label: { Label(t("profiles.add"), systemImage: "plus") }.disabled(runtime.active || !store.loaded)
             }
-            Text("使用你已有的代理服务。密码保存在 macOS Keychain。").foregroundStyle(.secondary)
+            Text(t("profiles.intro")).foregroundStyle(.secondary)
             List(store.configuration.proxies) { p in
                 HStack {
                     Image(systemName: "server.rack").foregroundStyle(.blue).font(.title2)
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(p.name).font(.headline)
-                        Text("\(p.kind.title) · \(p.host):\(p.port)").foregroundStyle(.secondary)
+                        Text(verbatim: p.name).font(.headline)
+                        Text(verbatim: "\(p.kind.title) · \(p.host):\(p.port)").environment(\.layoutDirection, .leftToRight).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    if p.hasPassword { Image(systemName: "key.fill").foregroundStyle(.secondary).help("密码已保存在 Keychain") }
-                    Button("编辑") { editor = p }
-                    Button(role: .destructive) { store.deleteProfile(p.id) } label: { Image(systemName: "trash") }
+                    if p.hasPassword { Image(systemName: "key.fill").foregroundStyle(.secondary).help(t("profiles.password_saved")) }
+                    Button(t("common.edit")) { editor = p }
+                    Button(role: .destructive) { store.deleteProfile(p.id) } label: { Image(systemName: "trash") }.help(t("common.delete")).accessibilityLabel(t("common.delete"))
                 }.padding(.vertical, 8).disabled(runtime.active)
-            }.overlay { if store.configuration.proxies.isEmpty { ContentUnavailableView("尚无代理配置", systemImage: "server.rack", description: Text("支持 SOCKS5 和 HTTP CONNECT，认证信息可选。")) } }
+            }.overlay { if store.configuration.proxies.isEmpty { ContentUnavailableView(t("profiles.empty_title"), systemImage: "server.rack", description: Text(t("profiles.empty_body"))) } }
         }.padding(18)
     }
     private var logsView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack { Text("连接与运行日志").font(.title3.bold()); Spacer(); Text("最近 150 条 · 不解密 TLS").foregroundStyle(.secondary).font(.caption) }
-            if let restoration = runtime.restoration { Text(restoration).font(.callout).textSelection(.enabled) }
+            HStack { Text(t("logs.title")).font(.title3.bold()); Spacer(); Text(t("logs.limit")).foregroundStyle(.secondary).font(.caption) }
+            Text(t("logs.original")).font(.caption).foregroundStyle(.secondary)
+            if let restoration = runtime.restoration { Text(language.render(restoration)).font(.callout).textSelection(.enabled) }
             ScrollView {
-                Text(runtime.logs.isEmpty ? "尚无运行日志。启动后将显示内核记录的连接目标、进程归属（可用时）和分流结果。无归属字段的连接视为未知，默认直连。" : runtime.logs.joined(separator: "\n"))
-                    .font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
+                if runtime.displayLogs(language: language.language).isEmpty {
+                    Text(t("logs.empty")).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
+                } else {
+                    Text(verbatim: runtime.displayLogs(language: language.language).joined(separator: "\n"))
+                        .font(.system(.caption, design: .monospaced)).environment(\.layoutDirection, .leftToRight).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading).padding(12)
+                }
             }.background(.background, in: RoundedRectangle(cornerRadius: 8))
         }.padding(18)
     }
     private var limitationsView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("连接范围与使用方式").font(.title2.bold())
-                Text("1. 添加已有代理。2. 选择应用并分配代理。3. 点击“启动网络接管”并在 macOS 弹窗授权。规则修改需要先停止。停止会断开经过内核的现有连接。")
-                Text("TCP：支持 SOCKS5 和 HTTP CONNECT；已识别且匹配的连接在代理故障时返回错误。未知归属默认直连，本工具不提供防泄漏保证。")
-                Text("Helper：默认匹配 .app 包内进程。包外的 WebKit 网络服务、系统共享服务和其他代理工具不能自动归为某个应用。应用升级或移动后应重新选择。")
-                Text("UDP / QUIC：匹配应用的 UDP 被拒绝，可促使支持的客户端回退 TCP。未匹配 UDP 直连；共享/未知进程 UDP 同样可能直连。")
-                Text("DNS：系统 DNS 设置不变，端口 53 直连；不提供 DNS 隐私或按应用 DNS。应用自己的 DoH/DoT TCP 仍适用进程规则。")
-                Text("IPv6：配置与 IPv4 一并接入 TUN；管理员授权后的真实接管和恢复需按验收文档核实。Loopback、本地链路、绑定特定接口或其他 VPN 的更高优先级路由可能绕过 TUN。")
-                Text("网络状态：内核出站绑定检测到的原接口；已验证的本地上游进程及其整个应用包优先直连以避免回环，覆盖应用规则，例外列入日志。无法验证上游监听进程时拒绝启动，进程重启后需重启会话。停止后比较路由与 DNS，只清理本会话，不覆盖其他网络软件的设置。")
-                Text("此构建采用本地 ad-hoc 签名，无需 Apple 开发者账号，未公证。sing-box 1.14.3（GPL-3.0-or-later）随应用附带许可与源码链接。")
-                Link("项目说明与验收记录", destination: URL(string: "https://github.com/MRongM/app-proxy")!)
+                Text(t("help.title")).font(.title2.bold())
+                Text(t("help.steps"))
+                Text(t("help.tcp"))
+                Text(t("help.helpers"))
+                Text(t("help.udp"))
+                Text(t("help.dns"))
+                Text(t("help.ipv6"))
+                Text(t("help.lifecycle"))
+                Text(t("help.license"))
+                Link(t("help.project"), destination: URL(string: "https://github.com/MRongM/app-proxy")!)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(22)
         }
     }
 }
 
 struct ProfileEditor: View {
+    @EnvironmentObject private var language: LanguageSettings
+    private func t(_ key: String) -> String { language.text(key) }
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: AppStore
     @State var profile: ProxyProfile
     @State private var password = ""
     @State private var replacePassword = false
-    @State private var error: String?
+    @State private var error: LocalizedMessage?
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("代理配置").font(.title2.bold())
+            Text(t("nav.proxies")).font(.title2.bold())
             Form {
-                TextField("名称", text: $profile.name)
-                Picker("类型", selection: $profile.kind) { ForEach(ProxyKind.allCases, id: \.self) { Text($0.title).tag($0) } }
-                TextField("主机（不含协议）", text: $profile.host)
-                TextField("端口", value: $profile.port, format: .number.grouping(.never))
-                TextField("用户名（可选）", text: $profile.username)
-                if profile.hasPassword { Toggle("替换或删除已有密码", isOn: $replacePassword) }
-                if !profile.hasPassword || replacePassword { SecureField("密码（可选）", text: $password) }
+                TextField(t("profiles.name"), text: $profile.name)
+                Picker(t("profiles.kind"), selection: $profile.kind) { ForEach(ProxyKind.allCases, id: \.self) { Text($0.title).tag($0) } }
+                TextField(t("profiles.host"), text: $profile.host).environment(\.layoutDirection, .leftToRight)
+                TextField(t("profiles.port"), value: $profile.port, format: .number.grouping(.never)).environment(\.layoutDirection, .leftToRight)
+                TextField(t("profiles.username"), text: $profile.username)
+                if profile.hasPassword { Toggle(t("profiles.replace_password"), isOn: $replacePassword) }
+                if !profile.hasPassword || replacePassword { SecureField(t("profiles.password"), text: $password) }
             }.formStyle(.grouped)
-            if let error { Text(error).foregroundStyle(.red).font(.callout) }
+            if let error { Text(language.render(error)).foregroundStyle(.red).font(.callout) }
             HStack {
-                Text("HTTP CONNECT 为明文上游协议；请使用可信网络。").font(.caption).foregroundStyle(.secondary)
+                Text(t("profiles.http_warning")).font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("保存") {
+                Button(t("common.cancel")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(t("common.save")) {
                     do {
                         let keep = profile.hasPassword && !replacePassword
                         var candidate = profile; candidate.host = candidate.host.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !keep { candidate.hasPassword = !password.isEmpty }
                         try store.saveProfile(candidate, password: password, keepPassword: keep); dismiss()
-                    } catch { self.error = error.localizedDescription }
+                    } catch { self.error = .from(error) }
                 }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
-        }.padding(22).frame(width: 570)
+        }.padding(22).frame(minWidth: 570, idealWidth: 650)
     }
 }

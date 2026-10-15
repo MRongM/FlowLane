@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class AppStore: ObservableObject {
     @Published private(set) var configuration = AppConfiguration()
-    @Published var error: String?
+    @Published var error: LocalizedMessage?
     @Published private(set) var loaded = false
     let secrets = KeychainSecrets()
     let persistence: ConfigurationStore
@@ -14,17 +14,17 @@ final class AppStore: ObservableObject {
         persistence = ConfigurationStore(directory: directory)
         if directory == AppPaths.support { _ = try? SessionDirectory.cleanupAbandoned() }
         do { configuration = try persistence.load(); loaded = true }
-        catch { self.error = "读取配置失败，请修复 configuration.json 后重新打开应用。\n" + error.localizedDescription }
+        catch { self.error = LocalizedMessage("error.config_load", values: [.from(error)], table: .interface) }
     }
     func change(_ update: (inout AppConfiguration) throws -> Void) {
         guard loaded else { return }
         do {
             var candidate = configuration; try update(&candidate)
             try persistence.save(candidate); configuration = candidate
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = .from(error) }
     }
     func saveProfile(_ profile: ProxyProfile, password: String, keepPassword: Bool) throws {
-        guard loaded else { throw AppProxyError("原配置未成功读取，不能覆盖") }
+        guard loaded else { throw AppProxyError(content: LocalizedMessage("error.config_unavailable", table: .interface)) }
         var candidate = configuration
         if let index = candidate.proxies.firstIndex(where: { $0.id == profile.id }) { candidate.proxies[index] = profile }
         else { candidate.proxies.append(profile) }
@@ -48,11 +48,13 @@ final class AppStore: ObservableObject {
             var candidate = configuration; try candidate.removeProxy(id: id)
             try persistence.save(candidate); configuration = candidate
             try secrets.delete(id)
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = .from(error) }
     }
-    func selectApplication() {
+    func selectApplication(language: AppLanguage = .en) {
         guard loaded else { return }
-        let panel = NSOpenPanel(); panel.title = "选择需要代理的应用"; panel.prompt = "添加应用"
+        let panel = NSOpenPanel()
+        panel.title = Localization.text("apps.picker_title", language: language)
+        panel.prompt = Localization.text("apps.add", language: language)
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowedContentTypes = [.applicationBundle]; panel.allowsOtherFileTypes = false
         panel.canChooseFiles = true; panel.canChooseDirectories = false
@@ -65,12 +67,12 @@ final class AppStore: ObservableObject {
         do {
             let rules = try urls.map { try AppSelection.rule(for: $0, proxyID: configuration.proxies.first?.id) }
             change { $0.rules.append(contentsOf: rules) }
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = .from(error) }
     }
     func assignProxy(_ proxyID: UUID?, to ruleID: UUID) {
         change { candidate in
-            guard let index = candidate.rules.firstIndex(where: { $0.id == ruleID }) else { throw AppProxyError("应用规则不存在") }
-            if let proxyID, !candidate.proxies.contains(where: { $0.id == proxyID }) { throw AppProxyError("所选代理不存在") }
+            guard let index = candidate.rules.firstIndex(where: { $0.id == ruleID }) else { throw AppProxyError(content: LocalizedMessage("error.rule_missing", table: .interface)) }
+            if let proxyID, !candidate.proxies.contains(where: { $0.id == proxyID }) { throw AppProxyError(content: LocalizedMessage("error.proxy_missing", table: .interface)) }
             let wasUnassigned = candidate.rules[index].proxyID == nil
             candidate.rules[index].proxyID = proxyID
             if proxyID == nil { candidate.rules[index].enabled = false }
@@ -80,7 +82,7 @@ final class AppStore: ObservableObject {
     func passwords() throws -> [String: String] {
         var result: [String: String] = [:]
         for p in configuration.proxies where p.hasPassword {
-            guard let password = try secrets.read(p.id) else { throw AppProxyError("Keychain 中缺少密码：" + p.name) }
+            guard let password = try secrets.read(p.id) else { throw AppProxyError(content: LocalizedMessage("error.password_missing", arguments: [p.name], table: .interface)) }
             result[p.id.uuidString] = password
         }
         return result

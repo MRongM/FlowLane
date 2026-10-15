@@ -92,12 +92,12 @@ final class SessionTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: path.path))
     }
     func testSnapshotComparisonReportsUnknownAndChangedState() {
-        let before = NetworkSnapshot(values: ["DNS": "a", "IPv4 路由": "route"])
+        let before = NetworkSnapshot(values: ["dns": "a", "routes.ipv4": "route"])
         XCTAssertTrue(before.matches(NetworkSnapshot(values: before.values)))
-        XCTAssertTrue(before.comparison(to: NetworkSnapshot(values: ["DNS": "b", "IPv4 路由": "route"])).contains("DNS"))
-        let missing = NetworkSnapshot(values: ["DNS": "<unavailable>"])
+        XCTAssertTrue(before.comparison(to: NetworkSnapshot(values: ["dns": "b", "routes.ipv4": "route"])).contains("DNS"))
+        let missing = NetworkSnapshot(values: ["dns": "<unavailable>"])
         XCTAssertFalse(missing.matches(missing))
-        XCTAssertTrue(missing.comparison(to: missing).contains("不完整"))
+        XCTAssertTrue(missing.comparison(to: missing).contains("incomplete"))
     }
     func testBundledHelperChecksCoreWithoutConsumingRequestAndRejectsTampering() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -182,7 +182,7 @@ final class SessionTests: XCTestCase {
 
     func testActualReadOnlySnapshotQueriesComplete() {
         let before = NetworkSnapshot.capture()
-        XCTAssertEqual(Set(before.values.keys), Set(["IPv4 路由", "IPv6 路由", "DNS", "系统代理"]))
+        XCTAssertEqual(Set(before.values.keys), Set(["routes.ipv4", "routes.ipv6", "dns", "system.proxy"]))
         XCTAssertFalse(before.values.values.contains("<unavailable>"))
         XCTAssertTrue(before.matches(before))
     }

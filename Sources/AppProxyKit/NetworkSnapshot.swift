@@ -7,15 +7,15 @@ public struct NetworkSnapshot: Sendable {
     public init(values: [String: String]) { self.values = values }
     public static func capture() -> NetworkSnapshot {
         let commands: [(String, String, [String])] = [
-            ("IPv4 路由", "/usr/sbin/netstat", ["-rn", "-f", "inet"]),
-            ("IPv6 路由", "/usr/sbin/netstat", ["-rn", "-f", "inet6"]),
-            ("DNS", "/usr/sbin/scutil", ["--dns"]),
-            ("系统代理", "/usr/sbin/scutil", ["--proxy"])
+            ("routes.ipv4", "/usr/sbin/netstat", ["-rn", "-f", "inet"]),
+            ("routes.ipv6", "/usr/sbin/netstat", ["-rn", "-f", "inet6"]),
+            ("dns", "/usr/sbin/scutil", ["--dns"]),
+            ("system.proxy", "/usr/sbin/scutil", ["--proxy"])
         ]
         var result: [String: String] = [:]
         for (name, executable, arguments) in commands {
             let captured = captureCommand(executable, arguments: arguments)
-            result[name] = name.contains("路由") && captured != "<unavailable>" ? normalizeRoutes(captured) : captured
+            result[name] = (name == "routes.ipv4" || name == "routes.ipv6") && captured != "<unavailable>" ? normalizeRoutes(captured) : captured
         }
         return NetworkSnapshot(values: result)
     }
@@ -52,12 +52,29 @@ public struct NetworkSnapshot: Sendable {
         guard finished.wait(timeout: .now() + 1) == .success, !timedOut, process.terminationStatus == 0 else { return "<unavailable>" }
         return capture.result()
     }
-    public func comparison(to after: NetworkSnapshot) -> String {
+    public func comparison(to after: NetworkSnapshot) -> String { comparisonContent(to: after).rendered(in: .en) }
+    public func comparisonContent(to after: NetworkSnapshot) -> LocalizedMessage {
         let names = Set(values.keys).union(after.values.keys).sorted()
         let unavailable = names.filter { values[$0] == nil || after.values[$0] == nil || values[$0] == "<unavailable>" || after.values[$0] == "<unavailable>" }
         let changed = names.filter { values[$0] != after.values[$0] && !unavailable.contains($0) }
-        if !unavailable.isEmpty { return "恢复检查不完整：" + unavailable.joined(separator: "、") + (changed.isEmpty ? "" : "；存在差异：" + changed.joined(separator: "、")) }
-        return changed.isEmpty ? "已比较路由、DNS 和系统代理，未发现差异" : "停止后存在差异：" + changed.joined(separator: "、") + "；可能来自其他网络软件，请检查，未覆盖系统配置"
+        func category(_ name: String) -> LocalizedMessage {
+            switch name {
+            case "routes.ipv4": return LocalizedMessage("snapshot.category.ipv4")
+            case "routes.ipv6": return LocalizedMessage("snapshot.category.ipv6")
+            case "dns": return LocalizedMessage("snapshot.category.dns")
+            case "system.proxy": return LocalizedMessage("snapshot.category.proxy")
+            default: return .verbatim(name)
+            }
+        }
+        func list(_ identifiers: [String]) -> LocalizedMessage {
+            identifiers.map(category).reduce(nil as LocalizedMessage?) { partial, next in
+                partial.map { LocalizedMessage("snapshot.list", values: [$0, next]) } ?? next
+            } ?? .verbatim("")
+        }
+        if !unavailable.isEmpty {
+            return changed.isEmpty ? LocalizedMessage("snapshot.incomplete", values: [list(unavailable)]) : LocalizedMessage("snapshot.incomplete.changed", values: [list(unavailable), list(changed)])
+        }
+        return changed.isEmpty ? LocalizedMessage("snapshot.unchanged") : LocalizedMessage("snapshot.changed", values: [list(changed)])
     }
     public func matches(_ after: NetworkSnapshot) -> Bool {
         values == after.values && !values.values.contains("<unavailable>")

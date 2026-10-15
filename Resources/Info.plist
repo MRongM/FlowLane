@@ -3,12 +3,14 @@
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>com.mrongm.app-proxy</string>
   <key>CFBundleName</key><string>FlowLane</string>
-  <key>CFBundleDisplayName</key><string>流径 FlowLane</string>
+  <key>CFBundleDisplayName</key><string>FlowLane</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string><string>zh-Hant</string><string>ja</string><string>ko</string><string>fr</string><string>de</string><string>es</string><string>pt-BR</string><string>ru</string><string>ar</string></array>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleExecutable</key><string>AppProxy</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2.0</string>
-  <key>CFBundleVersion</key><string>2</string>
+  <key>CFBundleShortVersionString</key><string>0.3.0</string>
+  <key>CFBundleVersion</key><string>3</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>

@@ -1,6 +1,8 @@
 # 每次授权会话的 helper 协议
 
-`AppProxyHelper` 随应用打包于 `Contents/MacOS`，不安装 launch daemon，也不常驻。唯一可执行内核位置为同一包的 `Contents/Resources/sing-box`。固定 sing-box 1.14.3 arm64 内核 SHA-256：`28b7200074d6380006acc4f035a404c8af3dceb65dd92d7386ed92c9224e08a2`。helper 把二进制复制到当前有效用户拥有的 0700 私有临时目录，在复制完成后校验目标文件摘要，再执行。授权运行时临时目录属于 root。
+`AppProxyHelper` 随应用打包于 `Contents/MacOS`，不安装 launch daemon，也不常驻。唯一可执行内核位置为同一包的 `Contents/Resources/sing-box`。固定 sing-box 1.14.3：arm64 SHA-256 为 `28b7200074d6380006acc4f035a404c8af3dceb65dd92d7386ed92c9224e08a2`，x86_64 为 `4d63d13fe7516a5d0a76c764095238f9d51ada7bfa5d18cf5030ca3032882c68`；按编译架构选择。helper 把二进制复制到当前有效用户拥有的 0700 私有临时目录，在复制完成后校验目标文件摘要，再执行。授权运行时临时目录属于 root。
+
+0.3 本地化使用 `messageContent` / `restorationContent` 可选字段传输稳定消息键、表与参数，在 GUI 端按当前语言渲染；保留英语 `message` / `restoration` 字符串和旧状态解码兼容。请求的五字段集合未增加语言或可执行配置，helper 不读取界面偏好。运行内核原始日志保留原文。
 
 ## 命令
 

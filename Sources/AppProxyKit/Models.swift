@@ -1,8 +1,11 @@
 import Foundation
 
 public struct AppProxyError: LocalizedError, Equatable {
-    public let message: String
-    public init(_ message: String) { self.message = message }
+    public let content: LocalizedMessage
+    public var message: String { content.rendered(in: .en) }
+    public init(_ message: String) { content = .verbatim(message) }
+    public init(content: LocalizedMessage) { self.content = content }
+    public init(localized key: String, arguments: [String] = []) { content = LocalizedMessage(key, arguments: arguments) }
     public var errorDescription: String? { message }
 }
 
@@ -50,32 +53,32 @@ public struct AppConfiguration: Codable, Equatable, Sendable {
     public var rules: [ApplicationRule]
     public init(proxies: [ProxyProfile] = [], rules: [ApplicationRule] = []) { self.proxies = proxies; self.rules = rules }
     public func validate() throws {
-        guard version == 1, proxies.count <= 128, rules.count <= 256 else { throw AppProxyError("配置版本或数量无效") }
-        guard Set(proxies.map(\.id)).count == proxies.count, Set(rules.map(\.id)).count == rules.count else { throw AppProxyError("配置含重复 ID") }
+        guard version == 1, proxies.count <= 128, rules.count <= 256 else { throw AppProxyError(localized: "error.config.limit") }
+        guard Set(proxies.map(\.id)).count == proxies.count, Set(rules.map(\.id)).count == rules.count else { throw AppProxyError(localized: "error.config.duplicate") }
         for p in proxies {
-            guard !p.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, p.name.utf8.count <= 200 else { throw AppProxyError("代理名称不能为空或超过 200 字节") }
+            guard !p.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, p.name.utf8.count <= 200 else { throw AppProxyError(localized: "error.proxy.name") }
             guard !p.host.isEmpty, p.host.utf8.count <= 253,
                   p.host.rangeOfCharacter(from: .whitespacesAndNewlines.union(.controlCharacters)) == nil,
                   !p.host.contains("/"), !p.host.contains("@"), !p.host.contains("["), !p.host.contains("]"),
-                  !p.host.contains("://"), (1...65535).contains(p.port) else { throw AppProxyError("代理主机或端口无效：主机不含协议/路径，端口 1–65535") }
-            guard p.username.utf8.count <= 255, p.username.rangeOfCharacter(from: .controlCharacters) == nil else { throw AppProxyError("用户名无效") }
-            guard !p.hasPassword || !p.username.isEmpty else { throw AppProxyError("设置密码时必须填写用户名") }
+                  !p.host.contains("://"), (1...65535).contains(p.port) else { throw AppProxyError(localized: "error.proxy.endpoint") }
+            guard p.username.utf8.count <= 255, p.username.rangeOfCharacter(from: .controlCharacters) == nil else { throw AppProxyError(localized: "error.proxy.username") }
+            guard !p.hasPassword || !p.username.isEmpty else { throw AppProxyError(localized: "error.proxy.username_required") }
         }
         for r in rules {
             if let proxyID = r.proxyID {
-                guard proxies.contains(where: { $0.id == proxyID }) else { throw AppProxyError("应用规则引用的代理不存在") }
+                guard proxies.contains(where: { $0.id == proxyID }) else { throw AppProxyError(localized: "error.rule.proxy_missing") }
             } else {
-                guard !r.enabled else { throw AppProxyError("启用应用规则前，请先分配代理") }
+                guard !r.enabled else { throw AppProxyError(localized: "error.rule.proxy_required") }
             }
             let url = URL(fileURLWithPath: r.appPath)
             guard r.appPath.hasPrefix("/"), url.pathExtension == "app", url.standardizedFileURL.path == r.appPath,
                   !r.appPath.contains("\n"), r.appPath.utf8.count <= 4096,
-                  r.executablePath.hasPrefix(r.appPath + "/"), URL(fileURLWithPath: r.executablePath).standardizedFileURL.path == r.executablePath else { throw AppProxyError("应用路径无效，请重新选择 .app") }
+                  r.executablePath.hasPrefix(r.appPath + "/"), URL(fileURLWithPath: r.executablePath).standardizedFileURL.path == r.executablePath else { throw AppProxyError(localized: "error.application.path") }
         }
     }
     public func match(path: String) -> ApplicationRule? { rules.first { $0.matches(path: path) } }
     public mutating func removeProxy(id: UUID) throws {
-        guard !rules.contains(where: { $0.proxyID == id }) else { throw AppProxyError("请先删除或调整引用此代理的应用规则") }
+        guard !rules.contains(where: { $0.proxyID == id }) else { throw AppProxyError(localized: "error.proxy.in_use") }
         proxies.removeAll { $0.id == id }
     }
 }

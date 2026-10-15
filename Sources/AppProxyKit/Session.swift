@@ -15,9 +15,17 @@ public struct SessionStatus: Codable, Sendable {
     public var corePID: Int32?
     public var logs: [String]
     public var restoration: String?
+    public var messageContent: LocalizedMessage?
+    public var restorationContent: LocalizedMessage?
     public init(phase: RuntimePhase, message: String, corePID: Int32? = nil, logs: [String] = [], restoration: String? = nil) {
         self.phase = phase; self.message = message; self.corePID = corePID
         self.logs = logs; self.restoration = restoration
+        messageContent = nil; restorationContent = nil
+    }
+    public init(phase: RuntimePhase, content: LocalizedMessage, corePID: Int32? = nil, logs: [String] = [], restorationContent: LocalizedMessage? = nil) {
+        self.phase = phase; messageContent = content; message = content.rendered(in: .en)
+        self.corePID = corePID; self.logs = logs; self.restorationContent = restorationContent
+        restoration = restorationContent?.rendered(in: .en)
     }
 }
 
@@ -52,7 +60,7 @@ public final class SessionDirectory {
         do {
             let request = SessionRequest(configuration: configuration, passwords: passwords, parentPID: getpid(), ownerUID: uid, token: secret)
             let data = try JSONEncoder().encode(request)
-            guard data.count <= 1_048_576 else { throw AppProxyError("启动请求过大") }
+            guard data.count <= 1_048_576 else { throw AppProxyError(localized: "error.request.size") }
             try result.write(data, named: "request.json")
             try result.heartbeat()
             return result
@@ -63,7 +71,7 @@ public final class SessionDirectory {
     /// EPERM and unknown/malformed state are treated as live; this never kills a process.
     @discardableResult public static func cleanupAbandoned() throws -> Int {
         let uid = getuid()
-        guard geteuid() == uid else { throw AppProxyError("旧会话清理仅允许普通应用调用") }
+        guard geteuid() == uid else { throw AppProxyError(localized: "error.session.cleanup_unprivileged") }
         let root = try sessionRoot(ownerUID: uid)
         let parent: Int32
         do { parent = try openDirectory(root, ownerUID: uid, creating: false) }
@@ -101,13 +109,13 @@ public final class SessionDirectory {
         let root = try sessionRoot(ownerUID: ownerUID)
         guard url.path.hasPrefix("/"), url.standardizedFileURL.path == url.path,
               url.deletingLastPathComponent().path == root.path,
-              UUID(uuidString: url.lastPathComponent) != nil else { throw AppProxyError("会话路径无效") }
+              UUID(uuidString: url.lastPathComponent) != nil else { throw AppProxyError(localized: "error.session.path") }
         let parent = try openDirectory(root, ownerUID: ownerUID, creating: false)
         let child = openat(parent, url.lastPathComponent, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
         guard child >= 0 else { Darwin.close(parent); throw failure() }
         var info = stat()
         guard fstat(child, &info) == 0, info.st_uid == ownerUID, info.st_mode & 0o777 == 0o700 else {
-            Darwin.close(child); Darwin.close(parent); throw AppProxyError("会话目录权限无效")
+            Darwin.close(child); Darwin.close(parent); throw AppProxyError(localized: "error.session.permissions")
         }
         return SessionDirectory(url: url, ownerUID: ownerUID, fd: child, parentFD: parent)
     }
@@ -117,26 +125,26 @@ public final class SessionDirectory {
         if consuming, unlinkat(fd, "request.json", 0) != 0 { throw Self.failure() }
         // This rejects alternate protocol versions/options; the compiler also only emits allowlisted fields.
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              Set(object.keys) == Set(["configuration", "passwords", "parentPID", "ownerUID", "token"]) else { throw AppProxyError("启动请求格式无效") }
+              Set(object.keys) == Set(["configuration", "passwords", "parentPID", "ownerUID", "token"]) else { throw AppProxyError(localized: "error.request.format") }
         let request: SessionRequest
         do { request = try JSONDecoder().decode(SessionRequest.self, from: data) }
-        catch { throw AppProxyError("启动请求格式无效") }
+        catch { throw AppProxyError(localized: "error.request.format") }
         guard request.ownerUID == ownerUID, request.parentPID > 1, request.token.count == 72,
               request.passwords.count <= 128,
               request.passwords.allSatisfy({ UUID(uuidString: $0.key) != nil && $0.value.utf8.count <= 4096 }),
               UUID(uuidString: String(request.token.prefix(36))) != nil,
-              UUID(uuidString: String(request.token.suffix(36))) != nil else { throw AppProxyError("启动请求身份无效") }
+              UUID(uuidString: String(request.token.suffix(36))) != nil else { throw AppProxyError(localized: "error.request.identity") }
         try request.configuration.validate()
         token = request.token
         return request
     }
 
     public func heartbeat() throws {
-        guard let token else { throw AppProxyError("会话令牌不可用") }
+        guard let token else { throw AppProxyError(localized: "error.session.token") }
         try write(JSONEncoder().encode(SessionHeartbeat(token: token, timestamp: Date().timeIntervalSince1970)), named: "heartbeat")
     }
     public func requestStop() throws {
-        guard let token else { throw AppProxyError("会话令牌不可用") }
+        guard let token else { throw AppProxyError(localized: "error.session.token") }
         try write(Data(token.utf8), named: "stop")
     }
     public func stopReason(token: String, now: Date = Date(), maximumHeartbeatAge: TimeInterval = 10) throws -> SessionStopReason? {
@@ -168,7 +176,7 @@ public final class SessionDirectory {
         if fstatat(parentFD, url.lastPathComponent, &actual, AT_SYMLINK_NOFOLLOW) != 0 {
             if errno == ENOENT { return }; throw Self.failure()
         }
-        guard fstat(fd, &expected) == 0, actual.st_ino == expected.st_ino, actual.st_dev == expected.st_dev else { throw AppProxyError("会话目录已被替换") }
+        guard fstat(fd, &expected) == 0, actual.st_ino == expected.st_ino, actual.st_dev == expected.st_dev else { throw AppProxyError(localized: "error.session.replaced") }
         guard unlinkat(parentFD, url.lastPathComponent, AT_REMOVEDIR) == 0 else { throw Self.failure() }
     }
 
@@ -183,13 +191,13 @@ public final class SessionDirectory {
         var info = stat()
         guard fstat(file, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1,
               info.st_uid == ownerUID, info.st_mode & 0o777 == 0o600,
-              info.st_size >= 0, info.st_size <= maximum else { throw AppProxyError("会话文件权限、类型或大小无效") }
+              info.st_size >= 0, info.st_size <= maximum else { throw AppProxyError(localized: "error.session.file_metadata") }
         var data = Data(); var buffer = [UInt8](repeating: 0, count: 8192)
         while true {
             let count = Darwin.read(file, &buffer, buffer.count)
             if count == 0 { break }
             if count < 0 { if errno == EINTR { continue }; throw Self.failure() }
-            guard data.count + count <= maximum else { throw AppProxyError("会话文件过大") }
+            guard data.count + count <= maximum else { throw AppProxyError(localized: "error.session.file_size") }
             data.append(buffer, count: count)
         }
         return data
@@ -204,7 +212,7 @@ public final class SessionDirectory {
             while offset < bytes.count {
                 let count = Darwin.write(file, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
                 if count < 0 { if errno == EINTR { continue }; throw Self.failure() }
-                guard count > 0 else { throw AppProxyError("会话文件写入失败") }; offset += count
+                guard count > 0 else { throw AppProxyError(localized: "error.session.file_write") }; offset += count
             }
         }
         guard fchmod(file, 0o600) == 0,
@@ -213,7 +221,7 @@ public final class SessionDirectory {
               renameat(fd, temporary, fd, name) == 0 else { throw Self.failure() }
     }
     private static func sessionRoot(ownerUID: UInt32) throws -> URL {
-        guard let entry = getpwuid(ownerUID), let home = entry.pointee.pw_dir else { throw AppProxyError("会话用户不存在") }
+        guard let entry = getpwuid(ownerUID), let home = entry.pointee.pw_dir else { throw AppProxyError(localized: "error.session.user") }
         return URL(fileURLWithPath: String(cString: home), isDirectory: true).appendingPathComponent("Library/Application Support/App Proxy/Sessions", isDirectory: true)
     }
     private static func openDirectory(_ url: URL, ownerUID: UInt32, creating: Bool) throws -> Int32 {
@@ -229,7 +237,7 @@ public final class SessionDirectory {
                 guard next >= 0 else { throw failure() }
                 var info = stat()
                 guard fstat(next, &info) == 0, (info.st_uid == ownerUID || info.st_uid == 0), info.st_mode & 0o022 == 0 else {
-                    Darwin.close(next); throw AppProxyError("会话父目录所有者或权限无效")
+                    Darwin.close(next); throw AppProxyError(localized: "error.session.parent_permissions")
                 }
                 Darwin.close(current); current = next
             }

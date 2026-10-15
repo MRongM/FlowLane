@@ -17,7 +17,7 @@ public struct LocalUpstreamPlan: Sendable {
     public func validateOwners() throws {
         for owner in owners {
             guard (try? LocalUpstream.processIdentity(pid: owner.pid)) == owner else {
-                throw AppProxyError("本地上游进程已退出或身份改变；已停止接管，请重新启动会话")
+                throw AppProxyError(localized: "local.owner_changed")
             }
         }
     }
@@ -42,7 +42,7 @@ public enum LocalUpstream {
         for profile in configuration.proxies where used.contains(profile.id) {
             try cancellationCheck()
             let addresses = try resolveAddresses(profile.host)
-            guard !addresses.contains("0.0.0.0"), !addresses.contains("::") else { throw AppProxyError("本地上游不能使用未指定地址；请填写具体本地 IP") }
+            guard !addresses.contains("0.0.0.0"), !addresses.contains("::") else { throw AppProxyError(localized: "local.unspecified") }
             let local = addresses.filter { address in
                 address.hasPrefix("127.") || address == "::1" || interfaces.contains(address)
             }
@@ -68,7 +68,7 @@ public enum LocalUpstream {
                 if !pids.isEmpty { foundLocalListener = true }
                 for pid in pids { owners[pid] = try processIdentity(pid: pid) }
             }
-            guard local.isEmpty || foundLocalListener else { throw AppProxyError("本地上游未找到可验证的 TCP 监听进程；网络未启动") }
+            guard local.isEmpty || foundLocalListener else { throw AppProxyError(localized: "local.listener_missing") }
         }
         let plan = LocalUpstreamPlan(owners: owners.values.sorted { $0.pid < $1.pid })
         try plan.validateOwners()
@@ -81,12 +81,12 @@ public enum LocalUpstream {
             var info = kinfo_proc(); var size = MemoryLayout<kinfo_proc>.stride
             guard pid > 0, sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0,
                   size == MemoryLayout<kinfo_proc>.stride, info.kp_proc.p_pid == pid,
-                  info.kp_proc.p_stat != SZOMB else { throw AppProxyError("无法验证本地上游进程身份；网络未启动") }
+                  info.kp_proc.p_stat != SZOMB else { throw AppProxyError(localized: "local.identity") }
             return info
         }
         let before = try processInfo()
         var bytes = [CChar](repeating: 0, count: 4096)
-        guard proc_pidpath(pid, &bytes, UInt32(bytes.count)) > 0 else { throw AppProxyError("无法读取本地上游可执行文件路径；网络未启动") }
+        guard proc_pidpath(pid, &bytes, UInt32(bytes.count)) > 0 else { throw AppProxyError(localized: "local.executable") }
         let path = String(cString: bytes)
         let after = try processInfo()
         let firstStart = before.kp_proc.p_un.__p_starttime
@@ -94,7 +94,7 @@ public enum LocalUpstream {
         guard firstStart.tv_sec == lastStart.tv_sec, firstStart.tv_usec == lastStart.tv_usec,
               before.kp_eproc.e_ucred.cr_uid == after.kp_eproc.e_ucred.cr_uid,
               path.hasPrefix("/"), URL(fileURLWithPath: path).standardizedFileURL.path == path,
-              path.rangeOfCharacter(from: .controlCharacters) == nil else { throw AppProxyError("本地上游进程身份在核验期间改变；网络未启动") }
+              path.rangeOfCharacter(from: .controlCharacters) == nil else { throw AppProxyError(localized: "local.identity_changed") }
         return LocalUpstreamOwner(pid: pid, executablePath: path, startedSeconds: Int64(lastStart.tv_sec), startedMicroseconds: Int64(lastStart.tv_usec), uid: after.kp_eproc.e_ucred.cr_uid)
     }
 
@@ -203,7 +203,7 @@ public enum LocalUpstream {
 
     private static func localInterfaceAddresses() throws -> Set<String> {
         var first: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&first) == 0 else { throw AppProxyError("无法读取本地接口地址；网络未启动") }
+        guard getifaddrs(&first) == 0 else { throw AppProxyError(localized: "local.interfaces") }
         defer { freeifaddrs(first) }
         var result = Set<String>(); var next = first
         while let current = next {
@@ -230,7 +230,7 @@ public enum LocalUpstream {
             }
             result.set(addresses)
         }
-        guard finished.wait(timeout: .now() + 4) == .success, let addresses = result.get(), !addresses.isEmpty else { throw AppProxyError("无法在限时内解析上游地址；网络未启动") }
+        guard finished.wait(timeout: .now() + 4) == .success, let addresses = result.get(), !addresses.isEmpty else { throw AppProxyError(localized: "local.resolve") }
         return addresses
     }
 
@@ -241,7 +241,7 @@ public enum LocalUpstream {
         process.standardInput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
         let pipe = Pipe(); process.standardOutput = pipe
         let output = DiscoveryOutput<Data>(); let finished = DispatchSemaphore(value: 0)
-        do { try process.run() } catch { throw AppProxyError("无法查询本地上游监听进程；网络未启动") }
+        do { try process.run() } catch { throw AppProxyError(localized: "local.query") }
         DispatchQueue.global().async {
             var data = Data(); var oversized = false
             while true {
@@ -262,7 +262,7 @@ public enum LocalUpstream {
         }
         process.waitUntilExit()
         guard finished.wait(timeout: .now() + 1) == .success, !timedOut,
-              [0, 1].contains(process.terminationStatus), let data = output.get() else { throw AppProxyError("本地上游进程查询超时或输出无效；网络未启动") }
+              [0, 1].contains(process.terminationStatus), let data = output.get() else { throw AppProxyError(localized: "local.query_output") }
         return parseListeners(String(decoding: data, as: UTF8.self))
     }
 }

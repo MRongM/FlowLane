@@ -3,6 +3,27 @@ import AppProxyKit
 @testable import AppProxy
 
 final class RuntimeControllerTests: XCTestCase {
+    @MainActor func testConfigurationCheckFailurePreservesLocalizedHelperMetadata() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = AppStore(directory: dir)
+        let p = ProxyProfile(name: "Fixture", kind: .http, host: "127.0.0.1", port: 1080)
+        let rule = ApplicationRule(name: "Fixture", appPath: "/Applications/Fixture.app", executablePath: "/Applications/Fixture.app/Contents/MacOS/Fixture", proxyID: p.id)
+        store.change { $0 = AppConfiguration(proxies: [p], rules: [rule]) }
+        let helperMessage = LocalizedMessage("helper.check.failed")
+        let runtime = RuntimeController(makeCommand: { _, args in
+            do {
+                let session = try SessionDirectory.open(url: URL(fileURLWithPath: args[2]), ownerUID: getuid())
+                try session.writeStatus(SessionStatus(phase: .failed, content: helperMessage))
+            } catch { XCTFail("Could not create helper metadata fixture") }
+            return CommandProcess(executable: URL(fileURLWithPath: "/usr/bin/false"), arguments: [])
+        }, reachability: { _ in })
+        runtime.start(store: store)
+        for _ in 0..<100 where runtime.active { try await Task.sleep(nanoseconds: 20_000_000) }
+        let expected = LocalizedMessage("error.config_check", values: [helperMessage], table: .interface)
+        XCTAssertEqual(runtime.state.content.rendered(in: .zhHans), expected.rendered(in: .zhHans))
+        XCTAssertEqual(runtime.state.content.rendered(in: .fr), expected.rendered(in: .fr))
+    }
     @MainActor func testStopCancelsPendingAuthorizationAndCleansSession() async throws {
         try await exerciseCancellation(quitting: false)
     }

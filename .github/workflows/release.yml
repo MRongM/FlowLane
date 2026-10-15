@@ -1,0 +1,214 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing v* tag to build; empty builds the selected branch'
+        required: false
+        type: string
+      publish:
+        description: 'Publish a release for the existing tag after both native builds pass'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.target.outputs.commit }}
+      tag: ${{ steps.target.outputs.tag }}
+      publish: ${{ steps.target.outputs.publish }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve immutable build commit and publication request
+        id: target
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+          REQUESTED_PUBLISH: ${{ inputs.publish }}
+        run: |
+          tag=''
+          publish=false
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            tag="$GITHUB_REF_NAME"
+            publish=true
+          else
+            tag="$REQUESTED_TAG"
+            if [ "$REQUESTED_PUBLISH" = true ]; then publish=true; fi
+          fi
+          if [ -n "$tag" ]; then
+            if [[ ! "$tag" =~ ^v[0-9][0-9A-Za-z.+_-]*$ ]]; then
+              printf 'Release tag must start with v and a version number.\n' >&2
+              exit 1
+            fi
+            git check-ref-format "refs/tags/$tag"
+            commit=$(git rev-parse --verify "refs/tags/$tag^{commit}")
+          else
+            if [ "$publish" = true ]; then
+              printf 'Publishing requires an existing v* tag.\n' >&2
+              exit 1
+            fi
+            commit=$(git rev-parse HEAD)
+          fi
+          if [ -n "$tag" ]; then
+            python3 - "$tag" "$commit" <<'PYVERSION'
+          import plistlib, re, subprocess, sys
+          tag, commit = sys.argv[1:]
+          number = r'(?:0|[1-9][0-9]*)'
+          identifiers = r'[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*'
+          match = re.fullmatch(r'v(' + number + r'\.' + number + r'\.' + number +
+                               r')(?:-(' + identifiers + r'))?(?:\+(' + identifiers + r'))?', tag)
+          if not match or (match.group(2) and any(
+              item.isdigit() and len(item) > 1 and item.startswith('0')
+              for item in match.group(2).split('.'))):
+              raise SystemExit('Release tag must be a semantic version, such as v0.3.0 or v0.3.0-rc.1')
+          metadata = plistlib.loads(subprocess.check_output(['git', 'show', commit + ':Resources/Info.plist']))
+          actual = metadata.get('CFBundleShortVersionString')
+          if actual != match.group(1):
+              raise SystemExit('Release tag base version differs from target commit CFBundleShortVersionString')
+          print('Release tag matches immutable target application version: ' + actual)
+          PYVERSION
+          fi
+          printf 'commit=%s\ntag=%s\npublish=%s\n' "$commit" "$tag" "$publish" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Release native macOS (${{ matrix.arch }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+      EXPECTED_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: tools/attribution/go.mod
+          cache-dependency-path: tools/attribution/go.sum
+      - name: Confirm native architecture and Xcode
+        run: |
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          xcrun swift --version
+      - name: Create disposable test keychain
+        run: |
+          keychain="$RUNNER_TEMP/FlowLane-tests.keychain-db"
+          security create-keychain -p '' "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p '' "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -d user -s "$keychain"
+      - name: Native tests and loopback integration
+        run: scripts/test.sh
+      - name: Build native application
+        run: scripts/build.sh --arch "$EXPECTED_ARCH"
+      - name: Audit packaged resources and all eleven localization catalogs
+        run: '"dist/$EXPECTED_ARCH/FlowLane.app/Contents/MacOS/AppProxy" --localization-audit'
+      - name: Check packaged core and actual Swift product compiler without TUN
+        run: |
+          python3 scripts/integration.py \
+            --core "dist/$EXPECTED_ARCH/FlowLane.app/Contents/Resources/sing-box" \
+            --helper "dist/$EXPECTED_ARCH/FlowLane.app/Contents/MacOS/AppProxyHelper"
+      - name: Smoke test packaged application without network activation
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, signal, subprocess, tempfile, uuid
+          app = (pathlib.Path('dist') / os.environ['EXPECTED_ARCH'] / 'FlowLane.app').resolve()
+          marker = '--flowlane-ci-' + uuid.uuid4().hex
+          with tempfile.TemporaryDirectory(prefix='flowlane-smoke-') as temporary:
+              output = pathlib.Path(temporary) / 'stdout'
+              error = pathlib.Path(temporary) / 'stderr'
+              try:
+                  result = subprocess.run(
+                      ['open', '-n', '-W', '-a', str(app), '--stdout', str(output),
+                       '--stderr', str(error), '--args', marker, '--smoke-test'],
+                      text=True, capture_output=True, timeout=45)
+                  text = output.read_text() if output.exists() else ''
+                  print(text)
+                  if result.returncode or 'UI_SMOKE_PASS' not in text:
+                      raise SystemExit('Packaged application smoke test failed')
+              finally:
+                  # open launches outside its own process tree. Stop only this
+                  # uniquely marked probe if a failed test left it running.
+                  processes = subprocess.check_output(['ps', '-axo', 'pid=,command='], text=True)
+                  for row in processes.splitlines():
+                      if marker in row and str(app / 'Contents/MacOS/AppProxy') in row:
+                          try:
+                              os.kill(int(row.split(None, 1)[0]), signal.SIGTERM)
+                          except ProcessLookupError:
+                              pass
+          PY
+      - name: Upload release candidate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: FlowLane-macos-${{ matrix.arch }}
+          path: dist/FlowLane-macos-${{ matrix.arch }}.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Delete disposable test keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/FlowLane-tests.keychain-db"
+
+  publish:
+    name: Publish both verified native applications
+    needs: [prepare, build]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+      RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: FlowLane-macos-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify candidate set and unchanged release tag
+        run: |
+          test "$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
+          test -f release-assets/FlowLane-macos-arm64.zip
+          test -f release-assets/FlowLane-macos-x86_64.zip
+          test "$(find release-assets -maxdepth 1 -name '*.zip' -type f | wc -l)" -eq 2
+          cd release-assets
+          sha256sum FlowLane-macos-arm64.zip FlowLane-macos-x86_64.zip > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - name: Create release with both architectures and checksums
+        run: |
+          gh release create "$RELEASE_TAG" \
+            release-assets/FlowLane-macos-arm64.zip \
+            release-assets/FlowLane-macos-x86_64.zip \
+            release-assets/SHA256SUMS \
+            --verify-tag --target "$RELEASE_COMMIT" --title "FlowLane $RELEASE_TAG" \
+            --notes-file docs/release-notes.md --generate-notes

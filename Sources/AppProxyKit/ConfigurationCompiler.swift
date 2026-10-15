@@ -10,8 +10,8 @@ public enum ConfigurationCompiler {
             if p.kind == .socks5 { out["version"] = "5" }
             if !p.username.isEmpty { out["username"] = p.username }
             if p.hasPassword {
-                guard let secret = passwords[p.id.uuidString], !secret.isEmpty, secret.utf8.count <= 4096 else { throw AppProxyError("无法从 Keychain 读取代理密码：" + p.name) }
-                guard p.kind != .socks5 || secret.utf8.count <= 255 else { throw AppProxyError("SOCKS5 密码不能超过 255 字节：" + p.name) }
+                guard let secret = passwords[p.id.uuidString], !secret.isEmpty, secret.utf8.count <= 4096 else { throw AppProxyError(localized: "error.proxy.password_missing", arguments: [p.name]) }
+                guard p.kind != .socks5 || secret.utf8.count <= 255 else { throw AppProxyError(localized: "error.proxy.socks_password", arguments: [p.name]) }
                 out["password"] = secret
             }
             outbounds.append(out)
@@ -27,7 +27,7 @@ public enum ConfigurationCompiler {
             ["port": [53], "action": "route", "outbound": "direct"]
         ]
         for r in configuration.rules where r.enabled {
-            guard let proxyID = r.proxyID, let proxy = configuration.proxies.first(where: { $0.id == proxyID }) else { throw AppProxyError("启用应用规则前，请先分配有效代理") }
+            guard let proxyID = r.proxyID, let proxy = configuration.proxies.first(where: { $0.id == proxyID }) else { throw AppProxyError(localized: "error.rule.proxy_required") }
             let match: [String: Any] = r.includeHelpers ? ["process_path_regex": [r.bundlePattern]] : ["process_path": [r.executablePath]]
             var udp = match; udp["network"] = "udp"; udp["action"] = "reject"
             var tcp = match; tcp["network"] = "tcp"; tcp["action"] = "route"

@@ -7,7 +7,7 @@ public struct ConfigurationStore {
     public func load() throws -> AppConfiguration {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return AppConfiguration() }
         let data = try Data(contentsOf: fileURL)
-        guard data.count <= 1_048_576 else { throw AppProxyError("配置文件过大") }
+        guard data.count <= 1_048_576 else { throw AppProxyError(localized: "error.config.size") }
         let c = try JSONDecoder().decode(AppConfiguration.self, from: data)
         try c.validate(); return c
     }
