@@ -46,20 +46,23 @@ struct AppProxyApp: App {
     }
     @MainActor private func smokeTest(directory: URL) {
         do {
+            let app = URL(fileURLWithPath: "/System/Applications/TextEdit.app")
+            store.addApplications([app])
+            guard store.error == nil, let draft = store.configuration.rules.first,
+                  draft.proxyID == nil, !draft.enabled,
+                  try store.persistence.load().rules == store.configuration.rules else { throw AppProxyError("无代理时选择应用或持久化失败") }
             var p = ProxyProfile(name: "本地测试代理", kind: .socks5, host: "127.0.0.1", port: 1080)
             try store.saveProfile(p, password: "", keepPassword: false)
             p.name = "SOCKS5 示例"
             try store.saveProfile(p, password: "", keepPassword: false)
-            let app = URL(fileURLWithPath: "/System/Applications/TextEdit.app")
-            let rule = try AppSelection.rule(for: app, proxyID: p.id)
-            store.change { $0.rules.append(rule) }
+            store.assignProxy(p.id, to: draft.id)
+            guard store.configuration.rules.first?.enabled == true else { throw AppProxyError("分配代理未启用规则") }
             guard store.error == nil, try store.persistence.load().rules == store.configuration.rules else { throw AppProxyError("UI 持久化检查失败") }
             store.change { $0.rules[0].enabled = false }
             store.change { $0.rules.removeAll() }
             store.deleteProfile(p.id)
             guard store.configuration.proxies.isEmpty, store.configuration.rules.isEmpty else { throw AppProxyError("UI 删除检查失败") }
-            try store.saveProfile(p, password: "", keepPassword: false)
-            store.change { $0.rules.append(rule) }
+            store.addApplications([app])
             guard !runtime.active else { throw AppProxyError("UI 冒烟测试不能启用网络") }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 Task { @MainActor in
@@ -79,7 +82,7 @@ struct AppProxyApp: App {
                             try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: args[index + 1]))
                         } catch { print("UI_SCREENSHOT_UNAVAILABLE " + error.localizedDescription) }
                     }
-                    print("UI_SMOKE_PASS profiles_create_edit_delete rules_create_edit_delete persistence window_created network_inactive")
+                    print("UI_SMOKE_PASS app_selection_before_proxy assignment profiles_create_edit_delete rules_create_edit_delete persistence branded_window network_inactive")
                     try? FileManager.default.removeItem(at: directory)
                     NSApplication.shared.terminate(nil)
                 }

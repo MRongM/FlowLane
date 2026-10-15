@@ -141,4 +141,28 @@ final class DomainTests: XCTestCase {
         try process.run(); process.waitUntilExit()
         XCTAssertEqual(process.terminationStatus, 0)
     }
+    func testUnassignedDisabledApplicationDraftIsValidAndSkippedByCompiler() throws {
+        let draft = try AppSelection.rule(for: URL(fileURLWithPath: "/System/Applications/TextEdit.app"))
+        XCTAssertNil(draft.proxyID); XCTAssertFalse(draft.enabled)
+        let configuration = AppConfiguration(rules: [draft])
+        XCTAssertNoThrow(try configuration.validate())
+        let decoded = try JSONDecoder().decode(AppConfiguration.self, from: JSONEncoder().encode(configuration))
+        XCTAssertEqual(decoded, configuration)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: ConfigurationCompiler.compile(configuration, passwords: [:])) as? [String: Any])
+        let route = try XCTUnwrap(object["route"] as? [String: Any])
+        XCTAssertEqual((route["rules"] as? [[String: Any]])?.count, 2)
+        var enabled = draft; enabled.enabled = true
+        XCTAssertThrowsError(try AppConfiguration(rules: [enabled]).validate())
+        XCTAssertThrowsError(try ConfigurationCompiler.compile(AppConfiguration(rules: [enabled]), passwords: [:]))
+    }
+    func testLegacyAssignedRuleJSONRemainsCompatible() throws {
+        let proxy = profile()
+        let original = AppConfiguration(proxies: [proxy], rules: [rule(proxy)])
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(AppConfiguration.self, from: data)
+        XCTAssertEqual(decoded.rules[0].proxyID, proxy.id)
+        XCTAssertTrue(decoded.rules[0].enabled)
+        XCTAssertNoThrow(try decoded.validate())
+    }
+
 }

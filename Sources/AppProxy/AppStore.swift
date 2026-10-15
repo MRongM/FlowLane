@@ -43,6 +43,7 @@ final class AppStore: ObservableObject {
         }
     }
     func deleteProfile(_ id: UUID) {
+        guard loaded else { return }
         do {
             var candidate = configuration; try candidate.removeProxy(id: id)
             try persistence.save(candidate); configuration = candidate
@@ -50,16 +51,30 @@ final class AppStore: ObservableObject {
         } catch { self.error = error.localizedDescription }
     }
     func selectApplication() {
-        guard let proxy = configuration.proxies.first else { error = "请先添加代理配置"; return }
+        guard loaded else { return }
         let panel = NSOpenPanel(); panel.title = "选择需要代理的应用"; panel.prompt = "添加应用"
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.applicationBundle]; panel.allowsOtherFileTypes = false
+        panel.canChooseFiles = true; panel.canChooseDirectories = false
+        panel.treatsFilePackagesAsDirectories = false; panel.canCreateDirectories = false
         panel.allowsMultipleSelection = true
-        if panel.runModal() == .OK {
-            do {
-                let rules = try panel.urls.map { try AppSelection.rule(for: $0, proxyID: proxy.id) }
-                change { $0.rules.append(contentsOf: rules) }
-            } catch { self.error = error.localizedDescription }
+        if panel.runModal() == .OK { addApplications(panel.urls) }
+    }
+    func addApplications(_ urls: [URL]) {
+        guard loaded else { return }
+        do {
+            let rules = try urls.map { try AppSelection.rule(for: $0, proxyID: configuration.proxies.first?.id) }
+            change { $0.rules.append(contentsOf: rules) }
+        } catch { self.error = error.localizedDescription }
+    }
+    func assignProxy(_ proxyID: UUID?, to ruleID: UUID) {
+        change { candidate in
+            guard let index = candidate.rules.firstIndex(where: { $0.id == ruleID }) else { throw AppProxyError("应用规则不存在") }
+            if let proxyID, !candidate.proxies.contains(where: { $0.id == proxyID }) { throw AppProxyError("所选代理不存在") }
+            let wasUnassigned = candidate.rules[index].proxyID == nil
+            candidate.rules[index].proxyID = proxyID
+            if proxyID == nil { candidate.rules[index].enabled = false }
+            else if wasUnassigned { candidate.rules[index].enabled = true }
         }
     }
     func passwords() throws -> [String: String] {

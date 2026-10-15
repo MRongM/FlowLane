@@ -38,7 +38,7 @@ from integration import (  # noqa: E402
 import socketserver  # noqa: E402
 
 
-DEFAULT_HELPER = ROOT / "dist/App Proxy.app/Contents/MacOS/AppProxyHelper"
+DEFAULT_HELPER = ROOT / "dist/FlowLane.app/Contents/MacOS/AppProxyHelper"
 EVIDENCE = ROOT / "dist/privileged-acceptance.json"
 CLIENT_TIMEOUT = 10
 

@@ -12,9 +12,13 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
-                Image(systemName: "arrow.triangle.branch").font(.largeTitle).foregroundStyle(.blue)
+                if let logo = NSImage(contentsOf: Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/FlowLane.png")) {
+                    Image(nsImage: logo).resizable().frame(width: 48, height: 48)
+                } else {
+                    Image(systemName: "arrow.triangle.branch").font(.largeTitle).foregroundStyle(.blue)
+                }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("App Proxy").font(.title2.bold())
+                    Text("流径 FlowLane").font(.title2.bold())
                     Text("为每个应用选择连接方式").foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -56,10 +60,10 @@ struct ContentView: View {
                 }
                 Spacer()
                 Button { store.selectApplication() } label: { Label("添加应用", systemImage: "plus") }
-                    .disabled(runtime.active || store.configuration.proxies.isEmpty || !store.loaded)
+                    .disabled(runtime.active || !store.loaded)
             }
             if store.configuration.rules.isEmpty {
-                ContentUnavailableView("添加需要代理的应用", systemImage: "app.dashed", description: Text(store.configuration.proxies.isEmpty ? "先在“代理配置”添加已有的 SOCKS5 或 HTTP CONNECT 服务。" : "选择 .app 后，指定代理并启用规则。"))
+                ContentUnavailableView("添加需要代理的应用", systemImage: "app.dashed", description: Text("可先选择 .app，稍后分配代理。未分配代理的规则保持停用。"))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 10) {
@@ -81,15 +85,20 @@ struct ContentView: View {
                 Text(rule.name).font(.headline)
                 Text(rule.appPath).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 Text("主进程：" + rule.executablePath).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(rule.executablePath)
+                if rule.proxyID == nil { Text("未分配代理，暂不启用").font(.caption).foregroundStyle(.secondary) }
                 Toggle("包含应用包内的 Helper / XPC", isOn: ruleBinding(rule, \.includeHelpers)).font(.caption)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 8) {
-                Picker("代理", selection: ruleBinding(rule, \.proxyID)) {
-                    ForEach(store.configuration.proxies) { p in Text(p.name).tag(p.id) }
+                Picker("代理", selection: Binding<UUID?>(get: {
+                    store.configuration.rules.first(where: { $0.id == rule.id })?.proxyID
+                }, set: { store.assignProxy($0, to: rule.id) })) {
+                    Text("未分配代理").tag(Optional<UUID>.none)
+                    ForEach(store.configuration.proxies) { p in Text(p.name).tag(Optional(p.id)) }
                 }.frame(width: 220)
                 HStack {
                     Toggle("启用", isOn: ruleBinding(rule, \.enabled)).toggleStyle(.switch).controlSize(.small)
+                        .disabled(rule.proxyID == nil)
                     Button { move(index, by: -1) } label: { Image(systemName: "arrow.up") }.disabled(index == 0)
                     Button { move(index, by: 1) } label: { Image(systemName: "arrow.down") }.disabled(index == store.configuration.rules.count - 1)
                     Button(role: .destructive) { store.change { $0.rules.removeAll { $0.id == rule.id } } } label: { Image(systemName: "trash") }

@@ -1,4 +1,6 @@
-# App Proxy
+# 流径 FlowLane
+
+每个应用，各行其径。Logo 以三条蓝绿流线组成抽象的 F，表示为应用选择独立网络路径。原图位于 [Resources/Brand/FlowLane.png](Resources/Brand/FlowLane.png)，随应用生成 Dock / Finder 图标。
 
 macOS 原生按应用代理工具。选择 `.app`，为它指定已有的 SOCKS5 或 HTTP CONNECT 上游；未匹配和无法识别的连接默认直连。无需 Apple 开发者账号，采用 SwiftUI + 固定版本 sing-box TUN，每次启动网络接管时请求管理员授权。
 
@@ -10,15 +12,15 @@ macOS 原生按应用代理工具。选择 `.app`，为它指定已有的 SOCKS5
 
 ```sh
 ./scripts/build.sh
-open "dist/App Proxy.app"
+open "dist/FlowLane.app"
 ```
 
-产物为 `dist/App Proxy.app` 和 `dist/App-Proxy-macos-arm64.zip`。脚本校验并下载官方 sing-box 1.14.3，以本地 ad-hoc 签名打包。无需签名身份，未公证。命令只设置本次构建的 `DEVELOPER_DIR`，不会全局切换 Xcode；打开界面不接管网络。
+产物为 `dist/FlowLane.app` 和 `dist/FlowLane-macos-arm64.zip`。旧 `dist/App Proxy.app` 路径保留为新应用的兼容链接。脚本校验并下载官方 sing-box 1.14.3，以本地 ad-hoc 签名打包。无需签名身份，未公证。命令只设置本次构建的 `DEVELOPER_DIR`，不会全局切换 Xcode；打开界面不接管网络。
 
 ## 使用
 
-1. 在“代理配置”添加 SOCKS5 或 HTTP CONNECT 的主机、端口和可选认证；密码保存在 Keychain，普通配置不保存密码。
-2. 在“应用规则”选择 `.app`，指定代理，调整优先级和启用状态。列表从上到下匹配；可选择是否包含包内 Helper / XPC。
+1. 在“应用规则”选择 `.app`；没有代理时也能添加，规则会以“未分配代理”状态保存并保持停用。
+2. 在“代理配置”添加 SOCKS5 或 HTTP CONNECT 的主机、端口和可选认证，再在规则中分配代理。密码保存在 Keychain，普通配置不保存密码。列表从上到下匹配；可选择是否包含包内 Helper / XPC。
 3. 点击“启动网络接管”，通过上游端口及内核配置检查后，在 macOS 弹窗中授权。上游预检只证明 TCP 端口可达，认证或代理转发错误在运行日志中显示。
 4. 点击“停止网络接管”结束会话。修改代理/规则前需先停止。停止会断开经过内核的现有连接，并显示网络恢复检查结果。
 
@@ -46,8 +48,8 @@ Loopback、本地链路、绑定指定接口的应用和其他 VPN 的更高优�
 
 ```sh
 ./scripts/test.sh
-python3 scripts/integration.py --helper "$PWD/dist/App Proxy.app/Contents/MacOS/AppProxyHelper"
-"dist/App Proxy.app/Contents/MacOS/AppProxy" --smoke-test "$PWD/dist/ui-smoke.png"
+python3 scripts/integration.py --helper "$PWD/dist/FlowLane.app/Contents/MacOS/AppProxyHelper"
+"dist/FlowLane.app/Contents/MacOS/AppProxy" --smoke-test "$PWD/dist/ui-smoke.png"
 ```
 
 Swift 测试覆盖模型、规则、Keychain、文件权限、配置编译、生命周期和 helper 边界。独立 Go 诊断以两个可执行文件各自的 TCP/UDP socket 验证真实 Darwin 归属；Python 集成测试以独立本地上游计数验证两种代理、默认直连、故障无回退和 UDP 拒绝。参考 [归属证据](docs/attribution-results.md)、[本地转发证据](docs/local-integration-results.md)。

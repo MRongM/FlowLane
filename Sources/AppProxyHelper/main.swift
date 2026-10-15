@@ -91,7 +91,7 @@ private func fixedCoreURL() throws -> URL {
     var path = [CChar](repeating: 0, count: Int(size))
     guard _NSGetExecutablePath(&path, &size) == 0 else { throw AppProxyError("无法定位捆绑内核") }
     let helper = URL(fileURLWithPath: String(cString: path)).resolvingSymlinksInPath()
-    guard helper.lastPathComponent == "AppProxyHelper", helper.deletingLastPathComponent().lastPathComponent == "MacOS" else { throw AppProxyError("请使用完整 App Proxy.app 中的 helper") }
+    guard helper.lastPathComponent == "AppProxyHelper", helper.deletingLastPathComponent().lastPathComponent == "MacOS" else { throw AppProxyError("请使用完整 FlowLane.app 中的 helper") }
     return helper.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources/sing-box")
 }
 

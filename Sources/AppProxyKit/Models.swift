@@ -31,16 +31,16 @@ public struct ApplicationRule: Codable, Equatable, Identifiable, Sendable {
     public var name: String
     public var appPath: String
     public var executablePath: String
-    public var proxyID: UUID
+    public var proxyID: UUID?
     public var enabled: Bool
     public var includeHelpers: Bool
-    public init(id: UUID = UUID(), name: String, appPath: String, executablePath: String, proxyID: UUID, enabled: Bool = true, includeHelpers: Bool = true) {
+    public init(id: UUID = UUID(), name: String, appPath: String, executablePath: String, proxyID: UUID?, enabled: Bool = true, includeHelpers: Bool = true) {
         self.id = id; self.name = name; self.appPath = appPath; self.executablePath = executablePath
         self.proxyID = proxyID; self.enabled = enabled; self.includeHelpers = includeHelpers
     }
     public var bundlePattern: String { "^" + NSRegularExpression.escapedPattern(for: appPath) + "/.*$" }
     public func matches(path: String) -> Bool {
-        enabled && (includeHelpers ? path.hasPrefix(appPath + "/") : path == executablePath)
+        enabled && proxyID != nil && (includeHelpers ? path.hasPrefix(appPath + "/") : path == executablePath)
     }
 }
 
@@ -62,7 +62,11 @@ public struct AppConfiguration: Codable, Equatable, Sendable {
             guard !p.hasPassword || !p.username.isEmpty else { throw AppProxyError("设置密码时必须填写用户名") }
         }
         for r in rules {
-            guard proxies.contains(where: { $0.id == r.proxyID }) else { throw AppProxyError("应用规则引用的代理不存在") }
+            if let proxyID = r.proxyID {
+                guard proxies.contains(where: { $0.id == proxyID }) else { throw AppProxyError("应用规则引用的代理不存在") }
+            } else {
+                guard !r.enabled else { throw AppProxyError("启用应用规则前，请先分配代理") }
+            }
             let url = URL(fileURLWithPath: r.appPath)
             guard r.appPath.hasPrefix("/"), url.pathExtension == "app", url.standardizedFileURL.path == r.appPath,
                   !r.appPath.contains("\n"), r.appPath.utf8.count <= 4096,

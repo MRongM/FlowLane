@@ -27,10 +27,11 @@ public enum ConfigurationCompiler {
             ["port": [53], "action": "route", "outbound": "direct"]
         ]
         for r in configuration.rules where r.enabled {
+            guard let proxyID = r.proxyID, let proxy = configuration.proxies.first(where: { $0.id == proxyID }) else { throw AppProxyError("启用应用规则前，请先分配有效代理") }
             let match: [String: Any] = r.includeHelpers ? ["process_path_regex": [r.bundlePattern]] : ["process_path": [r.executablePath]]
             var udp = match; udp["network"] = "udp"; udp["action"] = "reject"
             var tcp = match; tcp["network"] = "tcp"; tcp["action"] = "route"
-            tcp["outbound"] = configuration.proxies.first { $0.id == r.proxyID }!.tag
+            tcp["outbound"] = proxy.tag
             rules.append(udp); rules.append(tcp)
         }
         let json: [String: Any] = [

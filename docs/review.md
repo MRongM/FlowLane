@@ -1,5 +1,7 @@
 # 交付前审查
 
+0.2 更新复审：未分配代理的规则保持停用，启用 nil 代理或悬空引用会拒绝；旧规则 JSON 兼容。品牌修改保留配置与 Keychain identity，新的干净打包目录和旧路径兼容链接通过审查。51 项测试与新版窗口冒烟通过，无新增 Critical / Important。
+
 2026-10-15，独立审查覆盖 Swift 模型/编译器、Keychain、会话文件边界、root helper、网络生命周期、UI 取消与验收脚本。最终无剩余 Critical / Important 发现，允许交付源码；真实管理员 TUN 验收仍待执行。
 
 已修复并验证：
