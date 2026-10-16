@@ -1,7 +1,7 @@
 # FlowLane product site
 
 The static product introduction is prepared for
-`https://gh.328064.xyz/app-proxy/`, the HTTPS address reported by Pages for the
+`https://gh.328064.xyz/FlowLane/`, the HTTPS address reported by Pages for the
 account's existing custom domain. Preparing these files does not publish the
 site, create a Pages project, change repository visibility, or run network routing.
 

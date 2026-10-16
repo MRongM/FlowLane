@@ -2,13 +2,13 @@
 
 **为每个 macOS 应用选择自己的代理连接。**
 
-[English](README.md) · [介绍页面](https://gh.328064.xyz/app-proxy/) · [下载版本](https://github.com/MRongM/app-proxy/releases/latest) · [验证记录](docs/verification.md)
+[English](README.md) · [介绍页面](https://gh.328064.xyz/FlowLane/) · [下载版本](https://github.com/MRongM/FlowLane/releases/latest) · [验证记录](docs/verification.md)
 
-![CI](https://github.com/MRongM/app-proxy/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/MRongM/FlowLane/actions/workflows/ci.yml/badge.svg)
 
 选择 `.app`，为它分配你已有的 SOCKS5 或 HTTP CONNECT 服务，未匹配流量默认直连。原生 SwiftUI 界面搭配固定版本的开源 sing-box TUN 内核，无需 Apple 开发者账号。
 
-**当前为预览版本。** 已完成本地真实 TCP 转发、进程归属、配置、语言切换与受控运行边界验证；完整管理员 TUN 接管、IPv6 流量及恢复仍需单独验收。未知或包外共享进程可能直连，不提供强制防泄漏保证。
+**验证状态：** 已完成本地真实 TCP 转发、进程归属、配置、语言切换与受控运行边界验证；完整管理员 TUN 接管、IPv6 流量及恢复仍需单独验收。未知或包外共享进程可能直连，不提供强制防泄漏保证。
 
 ## 下载
 
@@ -16,8 +16,8 @@
 
 | Mac 类型 | 下载 |
 | --- | --- |
-| Apple Silicon（M 系列） | [FlowLane-macos-arm64.zip](https://github.com/MRongM/app-proxy/releases/latest/download/FlowLane-macos-arm64.zip) |
-| Intel | [FlowLane-macos-x86_64.zip](https://github.com/MRongM/app-proxy/releases/latest/download/FlowLane-macos-x86_64.zip) |
+| Apple Silicon（M 系列） | [FlowLane-macos-arm64.zip](https://github.com/MRongM/FlowLane/releases/latest/download/FlowLane-macos-arm64.zip) |
+| Intel | [FlowLane-macos-x86_64.zip](https://github.com/MRongM/FlowLane/releases/latest/download/FlowLane-macos-x86_64.zip) |
 
 解压后将 `FlowLane.app` 移到“应用程序”。应用采用 **ad-hoc 签名，未公证**；如果系统阻止打开，请按 [Apple 的官方说明](https://support.apple.com/guide/mac-help/mh40616/mac)在系统设置中确认。无需关闭 SIP，也无需购买开发者账号。Release 附带 `SHA256SUMS` 校验文件。
 
@@ -68,7 +68,7 @@ open "dist/FlowLane.app"
 
 ```sh
 ./scripts/test.sh
-"dist/FlowLane.app/Contents/MacOS/AppProxy" --localization-audit
+"dist/$(uname -m)/FlowLane.app/Contents/MacOS/FlowLane" --localization-audit
 python3 scripts/integration.py --core "$PWD/dist/FlowLane.app/Contents/Resources/sing-box" --helper "$PWD/dist/FlowLane.app/Contents/MacOS/AppProxyHelper"
 open -n -W -a "$PWD/dist/FlowLane.app" --args --smoke-test
 python3 scripts/privileged-acceptance.py --self-test
@@ -86,6 +86,6 @@ helper 校验用户、父进程、文件权限及固定内核摘要，拒绝链�
 
 - [CI](.github/workflows/ci.yml)：原生 ARM / Intel 测试、打包及本地化资源审计。
 - [Release](.github/workflows/release.yml)：校验标签与应用版本，两个原生构建通过后同时发布 ZIP 和 SHA256SUMS；手动触发默认只构建。
-- [Pages](.github/workflows/pages.yml)：发布 [11 语言介绍页面](https://gh.328064.xyz/app-proxy/)。本地执行 `python3 scripts/build-site.py` 后可预览 `build/site`。
+- [Pages](.github/workflows/pages.yml)：发布 [11 语言介绍页面](https://gh.328064.xyz/FlowLane/)。本地执行 `python3 scripts/build-site.py` 后可预览 `build/site`。
 
 源码采用 [GPL-3.0-or-later](LICENSE)。固定 **sing-box 1.14.3** 的 ARM / Intel 摘要、许可与匹配源码见 [ThirdParty/sing-box](ThirdParty/sing-box/SOURCE.md)。下载内核、含凭据运行配置和构建产物均不进入 Git。[Logo 与生成提示词](docs/branding.md)。

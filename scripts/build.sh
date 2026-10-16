@@ -27,15 +27,15 @@ staging=$(mktemp -d "$repo_root/build/bundle-$arch.XXXXXX")
 trap 'rm -rf "$staging"' EXIT
 app="$staging/FlowLane.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/ThirdParty"
-install -m 0755 "$binary_dir/AppProxy" "$app/Contents/MacOS/AppProxy"
+install -m 0755 "$binary_dir/FlowLane" "$app/Contents/MacOS/FlowLane"
 install -m 0755 "$binary_dir/AppProxyHelper" "$app/Contents/MacOS/AppProxyHelper"
 install -m 0755 "$core" "$app/Contents/Resources/sing-box"
-for executable in "$app/Contents/MacOS/AppProxy" "$app/Contents/MacOS/AppProxyHelper" "$app/Contents/Resources/sing-box"; do
+for executable in "$app/Contents/MacOS/FlowLane" "$app/Contents/MacOS/AppProxyHelper" "$app/Contents/Resources/sing-box"; do
   lipo "$executable" -verify_arch "$arch"
 done
 cp "$repo_root/Resources/Info.plist" "$app/Contents/Info.plist"
 # SwiftPM's development bundle fallback must never be needed by shipped apps.
-cp -R "$binary_dir/AppProxy_AppProxyKit.bundle" "$app/Contents/Resources/"
+cp -R "$binary_dir/FlowLane_AppProxyKit.bundle" "$app/Contents/Resources/"
 localizations=0
 for localization in "$repo_root/Resources/Localizations/"*.lproj; do
   [ -f "$localization/InfoPlist.strings" ] || continue
@@ -73,7 +73,7 @@ if [ "${actual_core_sha256%% *}" != "$core_sha256" ]; then
 fi
 if [ "$arch" = "$native_arch" ]; then
   # This exits before creating a UI and asserts resource resolution inside .app.
-  "$app/Contents/MacOS/AppProxy" --localization-audit
+  "$app/Contents/MacOS/FlowLane" --localization-audit
 fi
 # Assemble the zip before replacing any successful prior build.
 zip_name="FlowLane-macos-$arch.zip"

@@ -60,9 +60,9 @@ test("downloads target both architecture assets and no third-party site assets a
   assert.ok(markup.includes("releases/latest/download/FlowLane-macos-arm64.zip"));
   assert.ok(markup.includes("releases/latest/download/FlowLane-macos-x86_64.zip"));
   assert.equal([...markup.matchAll(/(?:src|href)="(https?:[^\"]+)"/g)].filter(match => !/https:\/\/(?:github\.com|MRongM\.github\.io|gh\.328064\.xyz)\//i.test(match[1])).length, 0);
-  assert.ok(markup.includes('<link rel="canonical" href="https://gh.328064.xyz/app-proxy/">'));
-  assert.ok(markup.includes('<meta property="og:url" content="https://gh.328064.xyz/app-proxy/">'));
-  assert.ok(markup.includes('<meta property="og:image" content="https://gh.328064.xyz/app-proxy/assets/flowlane.png">'));
+  assert.ok(markup.includes('<link rel="canonical" href="https://gh.328064.xyz/FlowLane/">'));
+  assert.ok(markup.includes('<meta property="og:url" content="https://gh.328064.xyz/FlowLane/">'));
+  assert.ok(markup.includes('<meta property="og:image" content="https://gh.328064.xyz/FlowLane/assets/flowlane.png">'));
   assert.ok(!markup.includes("<!-- UI_SCREENSHOT -->"));
   for (const key of ["scopeHelpers", "scopeUdp", "scopeDns", "scopeIpv6", "scopeLifecycle", "scopeLicense"]) {
     assert.ok(markup.includes(catalogs.en[key].replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")), `static English ${key}`);

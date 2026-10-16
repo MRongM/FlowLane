@@ -1,10 +1,20 @@
 # 验证记录
 
+## 2026-10-16：名称统一、重新构建与安装
+
+- 仓库已改为 `MRongM/FlowLane`，本地 `origin` 与应用、文档、站点中的项目链接同步更新。应用产品、主程序和 Swift 包使用 `FlowLane`，版本为 `0.3.0`；移除发布文案的预览标识不改变下文的网络验收范围。
+- 名称更新后，`scripts/test.sh` 通过 68 项 Swift 测试、7 项 Python 测试、Go 诊断与实际进程归属检查；loopback 转发及捆绑 helper 配置校验通过。测试前后的 IPv4/IPv6 路由、DNS 和系统代理快照一致，测试内核进程已退出。
+- `scripts/build.sh --arch arm64` 与 `--arch x86_64` 均通过构建、架构、签名及内核摘要校验；两个 ZIP 完整性及内部 `Info.plist`、主程序路径核对通过。此次 Intel 结果来自交叉构建，不代表改名后已完成 Intel 原生运行验证。
+- 原生应用的 11 语言捆绑资源审计及 LaunchServices 简体中文窗口冒烟通过，涵盖应用选择、代理与规则编辑、持久化和网络未启动断言。本次无屏幕录制权限，未生成新的窗口截图。
+- 应用已安装到 `/Applications/FlowLane.app`。安装时逐文件核对与构建内容一致，签名及资源审计通过，并成功启动系统安装目录中的主程序。
+- 提交整理前再次通过上述 68 项 Swift、7 项 Python、Go 归属与 loopback 检查，网络快照保持一致；站点的 5 项 Node 测试、11 语言构建校验、已安装应用的签名/资源审计与两份 ZIP 的 SHA-256 复核通过。随后清理构建缓存、下载内核缓存、旧应用副本及诊断产物，保留最终应用、安装包和用户参考图。
+- 删除开发缓存后，系统安装版与 `dist/arm64/FlowLane.app` 实际目录的 11 语言资源审计仍通过。通过 `dist/FlowLane.app` 符号链接直接调用审计会触发路径前缀误报，README 的审计命令已使用实际架构目录；本次未修改该审计函数。
+
 ## 0.3：11 语言、双架构与公开发布
 
 - `swift test`：68/68 通过，覆盖系统语言匹配、手动偏好持久化、全局/应用语言隔离、2068 条界面及运行消息的键/占位符、已有错误即时重渲染、旧状态兼容、特权请求字段不变，以及原有网络/凭据/生命周期边界。
 - Python 诊断回归：7/7 通过，覆盖 allowlist 状态键、符号链接拒绝、未知/占位符消息隐藏、超时和启动错误脱敏及失败清理。
-- [GitHub 原生 ARM/Intel CI](https://github.com/MRongM/app-proxy/actions/runs/38681481306)：两边均通过 68 项 Swift 测试、7 项 Python 诊断测试、Go 归属诊断、实际 loopback 转发、Release 打包/签名/内核摘要、捆绑 11 语言资源审计、产品 helper 配置校验和 LaunchServices 窗口冒烟。
+- [GitHub 原生 ARM/Intel CI](https://github.com/MRongM/FlowLane/actions/runs/38681481306)：两边均通过 68 项 Swift 测试、7 项 Python 诊断测试、Go 归属诊断、实际 loopback 转发、Release 打包/签名/内核摘要、捆绑 11 语言资源审计、产品 helper 配置校验和 LaunchServices 窗口冒烟。
 - 原生 Swift 6.1 CI 曾在优化后的 helper 临时目录权限检查失败；将 `mkdtemp` 返回指针到 String 的复制移入数组 buffer 的有效借用范围后，两种原生架构的打包校验均通过。较新本地 Swift 未复现旧问题，未把本地成功作为旧问题不存在的依据。
 - 11 种语言：en、zh-Hans、zh-Hant、ja、ko、fr、de、es、pt-BR、ru、ar。窗口和原生 Settings 共用一个偏好；部分 macOS 系统控件下次启动更新，系统授权窗口及原始内核诊断遵循系统/原始语言。
 - ARM 原生构建与 Intel 交叉构建通过架构、资源、签名及固定内核原始字节校验；Intel 原生运行结果以 GitHub Actions 原生 runner 为准。helper 使用分架构固定摘要。

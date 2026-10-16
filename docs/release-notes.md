@@ -1,4 +1,4 @@
-## FlowLane 0.3.0 — multilingual preview
+## FlowLane 0.3.0
 
 Native macOS per-application proxy utility, with separate Apple Silicon (arm64) and Intel (x86_64) builds for macOS14+.
 
@@ -8,7 +8,7 @@ Native macOS per-application proxy utility, with separate Apple Silicon (arm64) 
 - Existing SOCKS5/HTTP CONNECT upstreams, ordered app/helper rules, explicit administrator-approved TUN startup, bounded/redacted logs and controlled supervisor lifecycle.
 - Native ARM and Intel CI, pinned core checksums, GPL/source notices and SHA256SUMS for both ZIP files.
 
-### Preview limits
+### Known limits
 
 Full administrator-authorized TUN interception/recovery, live IPv6 and TUN UDP/QUIC acceptance are still separate verification steps. Unknown/shared processes default direct; matching UDP is rejected; DNS port53 is direct. No TLS decryption or leak-prevention guarantee. Builds are ad-hoc signed and not notarized. Some macOS-native menu/dialog text updates after restarting the app; core/system diagnostics retain their original language.
 

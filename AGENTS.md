@@ -1,10 +1,17 @@
 # Project context
 
-This project is a macOS utility for selecting applications and assigning proxy connections to their traffic.
+FlowLane is a macOS utility for selecting applications and assigning proxy connections to their traffic. The GitHub repository is `MRongM/FlowLane`.
 
 The user does not have an Apple Developer account. Evaluate an existing open-source networking core before relying on signed Network Extensions.
 
-The repository currently contains initialization documents only. Do not describe the proxy functionality as implemented until it has been built and verified.
+The repository contains the SwiftUI app, a controlled sing-box helper, and local verification scripts. Unprivileged loopback forwarding and process attribution have been verified. Full administrator-authorized TUN interception and recovery, live IPv6, and TUN UDP/QUIC acceptance remain unverified; see `docs/verification.md`.
+
+## Naming and compatibility
+
+- Keep the `FlowLane` package/product name, `CFBundleExecutable`, build scripts, CI launch paths, and `FlowLane_AppProxyKit.bundle` resource lookup aligned.
+- Internal modules and the helper retain their `AppProxy` names. Preserve the existing bundle identifier, configuration directory, and Keychain service so upgrades can read existing data; see `docs/branding.md`.
+- Use semantic version numbers for release names. Keep verification limits explicit in documentation.
+- Keep build caches, downloaded cores, diagnostics, and local scratch files out of Git. Preserve source assets, user-provided reference screenshots, and final delivery artifacts during routine cleanup. An installed `/Applications/FlowLane.app` is self-contained.
 
 ## Development guidance
 

@@ -126,7 +126,7 @@ jobs:
       - name: Build native application
         run: scripts/build.sh --arch "$EXPECTED_ARCH"
       - name: Audit packaged resources and all eleven localization catalogs
-        run: '"dist/$EXPECTED_ARCH/FlowLane.app/Contents/MacOS/AppProxy" --localization-audit'
+        run: '"dist/$EXPECTED_ARCH/FlowLane.app/Contents/MacOS/FlowLane" --localization-audit'
       - name: Check packaged core and actual Swift product compiler without TUN
         run: |
           python3 scripts/integration.py \
@@ -156,7 +156,7 @@ jobs:
                   # uniquely marked probe if a failed test left it running.
                   processes = subprocess.check_output(['ps', '-axo', 'pid=,command='], text=True)
                   for row in processes.splitlines():
-                      if marker in row and str(app / 'Contents/MacOS/AppProxy') in row:
+                      if marker in row and str(app / 'Contents/MacOS/FlowLane') in row:
                           try:
                               os.kill(int(row.split(None, 1)[0]), signal.SIGTERM)
                           except ProcessLookupError:

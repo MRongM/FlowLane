@@ -169,7 +169,7 @@ struct ContentView: View {
                 Text(t("help.ipv6"))
                 Text(t("help.lifecycle"))
                 Text(t("help.license"))
-                Link(t("help.project"), destination: URL(string: "https://github.com/MRongM/app-proxy")!)
+                Link(t("help.project"), destination: URL(string: "https://github.com/MRongM/FlowLane")!)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(22)
         }
     }

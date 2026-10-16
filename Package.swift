@@ -2,12 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "AppProxy",
+    name: "FlowLane",
     defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "AppProxyKit", targets: ["AppProxyKit"]),
-        .executable(name: "AppProxy", targets: ["AppProxy"]),
+        // Keep internal module/helper names stable while branding the app product.
+        .executable(name: "FlowLane", targets: ["AppProxy"]),
         .executable(name: "AppProxyHelper", targets: ["AppProxyHelper"])
     ],
     targets: [

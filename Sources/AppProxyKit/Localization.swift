@@ -67,7 +67,8 @@ public struct LocalizedMessage: Codable, Equatable, Sendable {
 public enum Localization {
     /// Packaged apps resolve their own resources before SwiftPM's development fallback.
     public static let resourceBundle: Bundle = {
-        let name = "AppProxy_AppProxyKit.bundle"
+        // SwiftPM derives this from the package and target names; keep build.sh aligned.
+        let name = "FlowLane_AppProxyKit.bundle"
         let candidates = [
             Bundle.main.resourceURL?.appendingPathComponent(name),
             Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/" + name),

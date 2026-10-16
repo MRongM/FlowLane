@@ -2,13 +2,13 @@
 
 **A native macOS app that chooses a proxy connection for each application.**
 
-[简体中文](README.zh-CN.md) · [Website](https://gh.328064.xyz/app-proxy/) · [Downloads](https://github.com/MRongM/app-proxy/releases/latest) · [Verification](docs/verification.md)
+[简体中文](README.zh-CN.md) · [Website](https://gh.328064.xyz/FlowLane/) · [Downloads](https://github.com/MRongM/FlowLane/releases/latest) · [Verification](docs/verification.md)
 
-![CI](https://github.com/MRongM/app-proxy/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/MRongM/FlowLane/actions/workflows/ci.yml/badge.svg)
 
 Select `.app` bundles, assign your existing SOCKS5 or HTTP CONNECT proxies, and keep unmatched traffic direct. FlowLane uses SwiftUI and a pinned open-source sing-box TUN core, without requiring an Apple Developer account.
 
-**Preview status:** local TCP forwarding, process attribution, configuration, language switching and controlled runtime boundaries are tested. Full administrator-authorized TUN routing, IPv6 traffic and recovery acceptance remain separate checks. Unknown/shared processes can connect directly; FlowLane is not a leak-prevention guarantee.
+**Verification status:** local TCP forwarding, process attribution, configuration, language switching and controlled runtime boundaries are tested. Full administrator-authorized TUN routing, IPv6 traffic and recovery acceptance remain separate checks. Unknown/shared processes can connect directly; FlowLane is not a leak-prevention guarantee.
 
 ## Download
 
@@ -16,8 +16,8 @@ Requires **macOS 14 or later**. Choose the build matching your Mac:
 
 | Mac | Download |
 | --- | --- |
-| Apple Silicon (M1/M2/M3/M4 and newer) | [FlowLane-macos-arm64.zip](https://github.com/MRongM/app-proxy/releases/latest/download/FlowLane-macos-arm64.zip) |
-| Intel | [FlowLane-macos-x86_64.zip](https://github.com/MRongM/app-proxy/releases/latest/download/FlowLane-macos-x86_64.zip) |
+| Apple Silicon (M1/M2/M3/M4 and newer) | [FlowLane-macos-arm64.zip](https://github.com/MRongM/FlowLane/releases/latest/download/FlowLane-macos-arm64.zip) |
+| Intel | [FlowLane-macos-x86_64.zip](https://github.com/MRongM/FlowLane/releases/latest/download/FlowLane-macos-x86_64.zip) |
 
 Unzip and move `FlowLane.app` to Applications. Builds are **ad-hoc signed, not notarized**. If macOS blocks the download, follow [Apple’s instructions for opening an app from an unidentified developer](https://support.apple.com/guide/mac-help/mh40616/mac). No SIP changes or developer subscription are needed. Releases include `SHA256SUMS`.
 
@@ -73,7 +73,7 @@ Packages: `dist/FlowLane-macos-arm64.zip` and `dist/FlowLane-macos-x86_64.zip`; 
 
 ```sh
 ./scripts/test.sh
-"dist/FlowLane.app/Contents/MacOS/AppProxy" --localization-audit
+"dist/$(uname -m)/FlowLane.app/Contents/MacOS/FlowLane" --localization-audit
 python3 scripts/integration.py --core "$PWD/dist/FlowLane.app/Contents/Resources/sing-box" --helper "$PWD/dist/FlowLane.app/Contents/MacOS/AppProxyHelper"
 open -n -W -a "$PWD/dist/FlowLane.app" --args --smoke-test
 python3 scripts/privileged-acceptance.py --self-test
@@ -91,6 +91,6 @@ The helper accepts fixed operations and typed models, verifies owner/parent/file
 
 - [CI](.github/workflows/ci.yml) tests/builds both native architectures.
 - [Release](.github/workflows/release.yml) validates a `v*` tag against the app version and publishes only after both native builds pass, with two ZIPs and checksums. Manual dispatch defaults to build-only.
-- [Pages](.github/workflows/pages.yml) builds and publishes the [11-language introduction site](https://gh.328064.xyz/app-proxy/). Local preview: `python3 scripts/build-site.py` then serve `build/site`.
+- [Pages](.github/workflows/pages.yml) builds and publishes the [11-language introduction site](https://gh.328064.xyz/FlowLane/). Local preview: `python3 scripts/build-site.py` then serve `build/site`.
 
 FlowLane is GPL-3.0-or-later: [LICENSE](LICENSE). Pinned **sing-box 1.14.3**, architecture hashes, upstream license and matching source links are in [ThirdParty/sing-box](ThirdParty/sing-box/SOURCE.md). Downloaded executables, runtime credentials/configurations and built applications stay out of Git. [Brand assets and image-generation prompt](docs/branding.md).
