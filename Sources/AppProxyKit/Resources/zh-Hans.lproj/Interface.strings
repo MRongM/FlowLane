@@ -28,6 +28,8 @@
 "apps.main_process" = "主进程：{0}";
 "apps.unassigned_hint" = "未分配代理，暂不启用";
 "apps.include_helpers" = "包含应用包内的 Helper / XPC";
+"apps.safari_webkit" = "包含 WebKit 网络进程（Safari 兼容）";
+"apps.safari_webkit_warning" = "其他使用 WebKit 的应用也可能走此代理。DNS 仍直连；匹配的 UDP 会被拒绝。";
 "apps.proxy" = "代理";
 "apps.unassigned" = "未分配代理";
 "apps.enabled" = "启用";

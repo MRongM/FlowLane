@@ -28,6 +28,8 @@
 "apps.main_process" = "主要程序：{0}";
 "apps.unassigned_hint" = "尚未指派代理，規則已停用";
 "apps.include_helpers" = "包含 App 套件內的輔助程式與 XPC";
+"apps.safari_webkit" = "包含 WebKit 網路程序（Safari 相容）";
+"apps.safari_webkit_warning" = "其他使用 WebKit 的應用程式也可能使用此代理。DNS 仍直連；符合的 UDP 會被拒絕。";
 "apps.proxy" = "代理";
 "apps.unassigned" = "尚未指派代理";
 "apps.enabled" = "啟用";

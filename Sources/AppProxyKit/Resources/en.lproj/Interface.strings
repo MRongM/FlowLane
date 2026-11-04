@@ -28,6 +28,8 @@
 "apps.main_process" = "Main process: {0}";
 "apps.unassigned_hint" = "No proxy assigned; rule disabled";
 "apps.include_helpers" = "Include helpers and XPC inside the app bundle";
+"apps.safari_webkit" = "Include WebKit networking (Safari compatibility)";
+"apps.safari_webkit_warning" = "Other apps using WebKit may also use this proxy. DNS remains direct; matched UDP is rejected.";
 "apps.proxy" = "Proxy";
 "apps.unassigned" = "No proxy assigned";
 "apps.enabled" = "Enabled";

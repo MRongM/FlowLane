@@ -28,6 +28,8 @@
 "apps.main_process" = "Основной процесс: {0}";
 "apps.unassigned_hint" = "Прокси не назначен; правило выключено";
 "apps.include_helpers" = "Включать вспомогательные процессы и XPC внутри пакета приложения";
+"apps.safari_webkit" = "Включить сетевой процесс WebKit (совместимость с Safari)";
+"apps.safari_webkit_warning" = "Другие приложения с WebKit тоже могут использовать этот прокси. DNS остаётся прямым, совпадающий UDP отклоняется.";
 "apps.proxy" = "Прокси";
 "apps.unassigned" = "Прокси не назначен";
 "apps.enabled" = "Включено";

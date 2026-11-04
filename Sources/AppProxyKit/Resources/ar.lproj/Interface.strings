@@ -28,6 +28,8 @@
 "apps.main_process" = "العملية الرئيسية: {0}";
 "apps.unassigned_hint" = "لم يُعيّن وكيل؛ القاعدة معطّلة";
 "apps.include_helpers" = "تضمين العمليات المساعدة وXPC داخل حزمة التطبيق";
+"apps.safari_webkit" = "تضمين عملية شبكة WebKit (توافق Safari)";
+"apps.safari_webkit_warning" = "قد تستخدم التطبيقات الأخرى التي تستخدم WebKit هذا الوكيل أيضًا. يبقى DNS مباشرًا وتُرفض اتصالات UDP المطابقة.";
 "apps.proxy" = "الوكيل";
 "apps.unassigned" = "لم يُعيّن وكيل";
 "apps.enabled" = "مفعّلة";

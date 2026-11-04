@@ -133,11 +133,12 @@ final class DomainTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: folder) }
         let p = profile(); let r = rule(p)
-        let data = try ConfigurationCompiler.compile(AppConfiguration(proxies: [p], rules: [r]), passwords: [:], directProcessPaths: ["/local/proxy"], directBundlePaths: [r.appPath])
+        var safari = r; safari.id = UUID(); safari.includeHelpers = false; safari.includeWebKitNetworking = true
+        let data = try ConfigurationCompiler.compile(AppConfiguration(proxies: [p], rules: [r, safari]), passwords: [:], directProcessPaths: ["/local/proxy"], directBundlePaths: [r.appPath])
         let file = folder.appendingPathComponent("config.json")
         try SecureFiles.write(data, to: file)
         let process = Process(); process.executableURL = core; process.arguments = ["check", "-c", file.path]
-        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.standardError
         try process.run(); process.waitUntilExit()
         XCTAssertEqual(process.terminationStatus, 0)
     }
@@ -163,6 +164,46 @@ final class DomainTests: XCTestCase {
         XCTAssertEqual(decoded.rules[0].proxyID, proxy.id)
         XCTAssertTrue(decoded.rules[0].enabled)
         XCTAssertNoThrow(try decoded.validate())
+    }
+
+    func testSafariWebKitCompatibilityIsOptInAndMatchesSystemExecutableOnly() throws {
+        let proxy = profile()
+        let safari = ApplicationRule(name: "Safari", appPath: "/System/Applications/Safari.app", executablePath: "/System/Applications/Safari.app/Contents/MacOS/Safari", proxyID: proxy.id)
+        func compiledRules(_ configuration: AppConfiguration) throws -> [[String: Any]] {
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: ConfigurationCompiler.compile(configuration, passwords: [:])) as? [String: Any])
+            let route = try XCTUnwrap(object["route"] as? [String: Any])
+            return try XCTUnwrap(route["rules"] as? [[String: Any]])
+        }
+        let legacy = AppConfiguration(proxies: [proxy], rules: [safari])
+        XCTAssertEqual((try compiledRules(legacy)[3]["process_path_regex"] as? [String])?.count, 1)
+        var encoded = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy)) as? [String: Any])
+        var rows = try XCTUnwrap(encoded["rules"] as? [[String: Any]])
+        rows[0]["includeWebKitNetworking"] = true; encoded["rules"] = rows
+        let enabled = try JSONDecoder().decode(AppConfiguration.self, from: JSONSerialization.data(withJSONObject: encoded))
+        let rules = try compiledRules(enabled)
+        let patterns = try XCTUnwrap(rules[3]["process_path_regex"] as? [String])
+        XCTAssertEqual(patterns.count, 2)
+        let expression = try NSRegularExpression(pattern: try XCTUnwrap(patterns.last))
+        func matches(_ path: String) -> Bool { expression.firstMatch(in: path, range: NSRange(path.startIndex..., in: path)) != nil }
+        let suffix = "/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking"
+        XCTAssertTrue(matches("/System" + suffix))
+        XCTAssertTrue(matches("/System/Volumes/Preboot/Cryptexes/OS/System" + suffix))
+        XCTAssertTrue(matches("/System/Volumes/Preboot/Cryptexes/Incoming/OS/System" + suffix))
+        XCTAssertFalse(matches("/tmp" + suffix))
+        XCTAssertFalse(matches("/System" + suffix + "-other"))
+        XCTAssertEqual(rules[2]["process_path_regex"] as? [String], patterns)
+        XCTAssertEqual(rules[2]["action"] as? String, "reject")
+        XCTAssertEqual(rules[3]["outbound"] as? String, proxy.tag)
+        XCTAssertEqual(try JSONDecoder().decode(AppConfiguration.self, from: JSONEncoder().encode(enabled)), enabled)
+        XCTAssertTrue(enabled.rules[0].matches(path: "/System" + suffix))
+        var exact = enabled; exact.rules[0].includeHelpers = false
+        let exactRules = try compiledRules(exact)
+        let exactPatterns = try XCTUnwrap(exactRules[3]["process_path_regex"] as? [String])
+        XCTAssertEqual(exactPatterns, ["^" + NSRegularExpression.escapedPattern(for: safari.executablePath) + "$", patterns[1]])
+        XCTAssertTrue(exact.rules[0].matches(path: "/System" + suffix))
+        exact.rules[0].enabled = false
+        XCTAssertFalse(exact.rules[0].matches(path: "/System" + suffix))
+        XCTAssertEqual(try compiledRules(exact).count, 2)
     }
 
 }

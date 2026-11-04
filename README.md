@@ -50,6 +50,7 @@ Translations use standard `.lproj` / `.strings` resources. UI, validation, runti
 | --- | --- |
 | TCP / HTTPS / IMAP / SMTP | SOCKS5 or HTTP CONNECT by process path; local forwarding tested without reading/sending user email |
 | In-bundle Helper / XPC | Anchored, escaped bundle-path match; shared services outside the bundle are not automatically attributable |
+| Safari WebKit compatibility | Optional and off by default; matches the system WebKit Networking executable, which can also carry other apps' traffic |
 | Unknown / unmatched process | Direct by default |
 | UDP / QUIC | Matching app traffic is rejected; unmatched traffic is direct; live TUN acceptance remains pending |
 | DNS | Port 53 direct, `dns_mode: disabled`; no system DNS changes, per-app DNS or DNS privacy |

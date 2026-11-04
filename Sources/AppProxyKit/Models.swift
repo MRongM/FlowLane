@@ -37,13 +37,19 @@ public struct ApplicationRule: Codable, Equatable, Identifiable, Sendable {
     public var proxyID: UUID?
     public var enabled: Bool
     public var includeHelpers: Bool
+    /// Opt-in: WebKit Networking is shared by Safari and other WebKit clients.
+    public var includeWebKitNetworking: Bool? = nil
     public init(id: UUID = UUID(), name: String, appPath: String, executablePath: String, proxyID: UUID?, enabled: Bool = true, includeHelpers: Bool = true) {
         self.id = id; self.name = name; self.appPath = appPath; self.executablePath = executablePath
         self.proxyID = proxyID; self.enabled = enabled; self.includeHelpers = includeHelpers
     }
     public var bundlePattern: String { "^" + NSRegularExpression.escapedPattern(for: appPath) + "/.*$" }
+    public static let webKitNetworkingPattern = #"^/System/(?:Volumes/Preboot/Cryptexes/(?:Incoming/)?OS/System/)?Library/Frameworks/WebKit\.framework/Versions/A/XPCServices/com\.apple\.WebKit\.Networking\.xpc/Contents/MacOS/com\.apple\.WebKit\.Networking$"#
     public func matches(path: String) -> Bool {
-        enabled && proxyID != nil && (includeHelpers ? path.hasPrefix(appPath + "/") : path == executablePath)
+        guard enabled && proxyID != nil else { return false }
+        if includeHelpers ? path.hasPrefix(appPath + "/") : path == executablePath { return true }
+        guard includeWebKitNetworking == true else { return false }
+        return path.range(of: Self.webKitNetworkingPattern, options: .regularExpression) != nil
     }
 }
 

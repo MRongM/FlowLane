@@ -28,7 +28,14 @@ public enum ConfigurationCompiler {
         ]
         for r in configuration.rules where r.enabled {
             guard let proxyID = r.proxyID, let proxy = configuration.proxies.first(where: { $0.id == proxyID }) else { throw AppProxyError(localized: "error.rule.proxy_required") }
-            let match: [String: Any] = r.includeHelpers ? ["process_path_regex": [r.bundlePattern]] : ["process_path": [r.executablePath]]
+            var match: [String: Any] = r.includeHelpers ? ["process_path_regex": [r.bundlePattern]] : ["process_path": [r.executablePath]]
+            if r.includeWebKitNetworking == true {
+                if r.includeHelpers {
+                    match["process_path_regex"] = [r.bundlePattern, ApplicationRule.webKitNetworkingPattern]
+                } else {
+                    match = ["process_path_regex": ["^" + NSRegularExpression.escapedPattern(for: r.executablePath) + "$", ApplicationRule.webKitNetworkingPattern]]
+                }
+            }
             var udp = match; udp["network"] = "udp"; udp["action"] = "reject"
             var tcp = match; tcp["network"] = "tcp"; tcp["action"] = "route"
             tcp["outbound"] = proxy.tag

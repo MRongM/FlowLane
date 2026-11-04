@@ -28,6 +28,8 @@
 "apps.main_process" = "メインプロセス：{0}";
 "apps.unassigned_hint" = "プロキシ未割り当てのため、ルールは無効です";
 "apps.include_helpers" = "アプリバンドル内のヘルパーと XPC を含める";
+"apps.safari_webkit" = "WebKit ネットワークプロセスを含める（Safari 互換）";
+"apps.safari_webkit_warning" = "WebKit を使う他のアプリもこのプロキシを使う場合があります。DNS は直接接続され、一致した UDP は拒否されます。";
 "apps.proxy" = "プロキシ";
 "apps.unassigned" = "プロキシ未割り当て";
 "apps.enabled" = "有効";

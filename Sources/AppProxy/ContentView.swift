@@ -94,6 +94,14 @@ struct ContentView: View {
                 Text(t("apps.main_process", "\u{2066}" + rule.executablePath + "\u{2069}")).font(.caption2).foregroundStyle(.secondary).lineLimit(1).help(rule.executablePath)
                 if rule.proxyID == nil { Text(t("apps.unassigned_hint")).font(.caption).foregroundStyle(.secondary) }
                 Toggle(t("apps.include_helpers"), isOn: ruleBinding(rule, \.includeHelpers)).font(.caption)
+                if Bundle(url: URL(fileURLWithPath: rule.appPath))?.bundleIdentifier == "com.apple.Safari" {
+                    Toggle(t("apps.safari_webkit"), isOn: Binding(get: {
+                        store.configuration.rules.first(where: { $0.id == rule.id })?.includeWebKitNetworking == true
+                    }, set: { enabled in
+                        store.change { c in if let i = c.rules.firstIndex(where: { $0.id == rule.id }) { c.rules[i].includeWebKitNetworking = enabled } }
+                    })).font(.caption)
+                    Text(t("apps.safari_webkit_warning")).font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 8) {

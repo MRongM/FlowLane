@@ -28,6 +28,8 @@
 "apps.main_process" = "Hauptprozess: {0}";
 "apps.unassigned_hint" = "Kein Proxy zugewiesen; Regel deaktiviert";
 "apps.include_helpers" = "Hilfsprozesse und XPC im App-Bundle einbeziehen";
+"apps.safari_webkit" = "WebKit-Netzwerkprozess einbeziehen (Safari-Kompatibilität)";
+"apps.safari_webkit_warning" = "Andere Apps mit WebKit können ebenfalls diesen Proxy verwenden. DNS bleibt direkt; passende UDP-Verbindungen werden abgelehnt.";
 "apps.proxy" = "Proxy";
 "apps.unassigned" = "Kein Proxy zugewiesen";
 "apps.enabled" = "Aktiviert";

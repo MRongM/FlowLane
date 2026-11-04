@@ -45,6 +45,7 @@ TUN 接收由系统路由送来的流量，再决定代理或直连，未选中�
 | --- | --- |
 | TCP / HTTPS / IMAP / SMTP | 按进程指定 SOCKS5 / HTTP CONNECT；真实本地转发已测，未读取或发送用户邮件 |
 | 应用内 Helper / XPC | 转义且锚定的应用包路径匹配；包外共享服务不能自动归属 |
+| Safari WebKit 兼容 | 手动开启，默认关闭；匹配系统 WebKit 网络进程，其他使用 WebKit 的应用也可能走此代理 |
 | 未匹配 / 未知进程 | 默认直连 |
 | UDP / QUIC | 匹配应用拒绝，其他直连；真实 TUN 路径仍待验收 |
 | DNS | 端口 53 直连，`dns_mode: disabled`，不修改系统 DNS，不提供按应用 DNS 或 DNS 隐私 |
