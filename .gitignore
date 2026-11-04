@@ -16,6 +16,10 @@ runtime/
 downloaded-binaries/
 *.log
 *.local.json
+# User settings and transient session files must stay outside the repository.
+configuration.json
+configuration.json.*
+Sessions/
 
 # Credentials and signing materials
 .env
